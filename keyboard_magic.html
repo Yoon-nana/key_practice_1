@@ -119,6 +119,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:#050015;font-family:
 #wizard.p{animation:wPowerUp .8s ease forwards}
 
 /* KEY HINT */
+#author-credit{
+  position:fixed;bottom:10px;right:14px;z-index:30;
+  font-size:.72rem;color:rgba(170,190,255,.45);
+  font-family:'Noto Sans KR',sans-serif;font-weight:700;
+  letter-spacing:.5px;pointer-events:none;user-select:none;
+}
+
 #key-hint{
   font-size:clamp(.85rem,1.8vw,1rem);
   color:rgba(170,190,255,.5);text-align:center;
@@ -156,6 +163,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#050015;font-family:
 <body>
 <canvas id="stars-canvas"></canvas>
 <canvas id="fx-canvas"></canvas>
+<div id="author-credit">✏️ built by 최혜정 선생님</div>
 
 <div id="app">
   <div id="title">⌨️ 키보드 마법학교 ✨</div>
@@ -294,12 +302,12 @@ function drawP(p) {
       p.mouth += p.md*.12;
       if (p.mouth>.38) p.md=-1; if (p.mouth<.02) p.md=1;
       for (const d of P) {
-        if (d.t==='dot' && !d.eaten && d.x>p.x-5 && d.x<p.x+p.s) {
+        if (d.t==='dot' && !d.eaten && d.x>p.x-p.s && d.x<p.x+5) {
           d.eaten=true; d.life=0;
         }
       }
       fc.beginPath();
-      fc.arc(p.x,p.y, p.s, p.mouth*Math.PI, (2-p.mouth)*Math.PI);
+      fc.arc(p.x,p.y, p.s, (1+p.mouth)*Math.PI, (1-p.mouth)*Math.PI);
       fc.lineTo(p.x,p.y);
       fc.fillStyle='#FFD700'; fc.fill(); break;
 
