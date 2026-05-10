@@ -1,0 +1,302 @@
+<!doctype html>
+<html class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>마법 글자 편집기</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body { font-family: 'Noto Sans KR', sans-serif; }
+
+    .editor-wrap {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    .text-display {
+      position: absolute;
+      inset: 0;
+      padding: 32px;
+      font-size: 24px;
+      line-height: 2;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-y: auto;
+      pointer-events: none;
+      color: transparent;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+
+    .text-input {
+      position: absolute;
+      inset: 0;
+      padding: 32px;
+      font-size: 24px;
+      line-height: 2;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-y: auto;
+      background: transparent;
+      color: #e8e4dc;
+      caret-color: #f59e0b;
+      border: none;
+      outline: none;
+      resize: none;
+      font-family: 'Noto Sans KR', sans-serif;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 불 - 불꽃 */
+    .word-bul {
+      background: linear-gradient(to top, #ff2200, #ff6600, #ffcc00);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      filter: drop-shadow(0 0 6px rgba(255,80,0,0.8)) drop-shadow(0 0 16px rgba(255,140,0,0.5));
+      animation: fireFlicker 0.25s infinite alternate;
+      display: inline-block;
+      font-weight: 700;
+    }
+
+    /* 눈 - 눈송이 */
+    .word-nun {
+      color: #ddeeff;
+      filter: drop-shadow(0 0 6px rgba(180,220,255,0.9)) drop-shadow(0 0 14px rgba(150,200,255,0.6));
+      animation: snowGlow 2s ease-in-out infinite;
+      display: inline-block;
+      font-weight: 700;
+    }
+
+    /* 별 - 별빛 */
+    .word-byeol {
+      background: linear-gradient(135deg, #fff7a0, #ffe040, #fff9c4, #ffd700);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      filter: drop-shadow(0 0 8px rgba(255,220,0,0.9)) drop-shadow(0 0 20px rgba(255,200,0,0.6));
+      animation: starTwinkle 0.8s ease-in-out infinite;
+      display: inline-block;
+      font-weight: 700;
+      background-size: 200% 200%;
+    }
+
+    /* 비 - 빗방울 */
+    .word-bi {
+      color: #88ccff;
+      filter: drop-shadow(0 0 6px rgba(100,180,255,0.8)) drop-shadow(2px 4px 10px rgba(80,150,255,0.5));
+      animation: rainDrop 1.2s ease-in-out infinite;
+      display: inline-block;
+      font-weight: 700;
+    }
+
+    @keyframes fireFlicker {
+      0%   { transform: skewX(-1.5deg) translateY(0px) scale(1); }
+      100% { transform: skewX(1.5deg) translateY(-2px) scale(1.03); }
+    }
+
+    @keyframes snowGlow {
+      0%, 100% { transform: translateY(0) rotate(-2deg); filter: drop-shadow(0 0 6px rgba(180,220,255,0.9)) drop-shadow(0 0 14px rgba(150,200,255,0.6)); }
+      50%       { transform: translateY(-3px) rotate(2deg); filter: drop-shadow(0 0 10px rgba(200,235,255,1)) drop-shadow(0 0 22px rgba(170,220,255,0.9)); }
+    }
+
+    @keyframes starTwinkle {
+      0%, 100% { transform: scale(1) rotate(-1deg); opacity: 1; }
+      40%       { transform: scale(1.12) rotate(1deg); opacity: 0.75; }
+      80%       { transform: scale(0.95) rotate(-0.5deg); opacity: 0.9; }
+    }
+
+    @keyframes rainDrop {
+      0%, 100% { transform: translateY(0) skewX(0deg); }
+      30%       { transform: translateY(2px) skewX(-3deg); }
+      70%       { transform: translateY(-1px) skewX(2deg); }
+    }
+
+    #particle-canvas {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+  </style>
+ </head>
+ <body class="h-full bg-[#12100e] overflow-hidden">
+  <div class="h-full w-full flex flex-col">
+   <header class="px-8 pt-5 pb-2 flex items-center justify-between">
+    <h1 class="text-2xl font-bold" style="color:#f59e0b; font-family:'Noto Sans KR',sans-serif;">✨ 마법 글자 편집기</h1>
+    <span class="text-sm" style="color:#665; font-family:'Noto Sans KR',sans-serif;">써 보세요 →&nbsp;&nbsp;불 &nbsp;·&nbsp; 눈 &nbsp;·&nbsp; 별 &nbsp;·&nbsp; 비</span>
+   </header>
+   <div class="flex-1 mx-6 mb-6 rounded-xl border border-[#2a2a2a] bg-[#0e0c0a] relative overflow-hidden shadow-2xl">
+    <canvas id="particle-canvas"></canvas>
+    <div id="text-display" class="text-display"></div>
+    <textarea id="text-input" class="text-input" spellcheck="false">오늘 하늘에서 눈이 펑펑 내렸어요. 하얀 눈송이가 빙글빙글 돌면서 떨어졌어요.
+저녁이 되자 깜깜한 하늘에 별이 반짝반짝 빛났어요. 별을 하나하나 세어 보았어요.
+
+마당에 모닥불을 피웠어요. 불이 활활 타오르며 따뜻한 빛을 내뿜었어요.
+그때 갑자기 비가 내리기 시작했어요. 빗방울이 불 위에 톡톡 떨어졌어요.
+
+눈, 별, 불, 비... 오늘 하루는 마법 같은 날이었어요!</textarea>
+   </div>
+  </div>
+
+  <script>
+    const effectWords = {
+      '불': 'word-bul',
+      '눈': 'word-nun',
+      '별': 'word-byeol',
+      '비': 'word-bi'
+    };
+
+    const particleTypes = {
+      'word-bul':   'fire',
+      'word-nun':   'snow',
+      'word-byeol': 'star',
+      'word-bi':    'rain'
+    };
+
+    // ── Canvas ──────────────────────────────────────────────
+    const canvas = document.getElementById('particle-canvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width  = rect.width;
+      canvas.height = rect.height;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // ── Particle ────────────────────────────────────────────
+    class Particle {
+      constructor(x, y, type) {
+        this.x    = x;
+        this.y    = y;
+        this.type = type;
+        this.life = 1;
+
+        if (type === 'fire') {
+          this.decay = 0.018 + Math.random() * 0.018;
+          this.size  = 2 + Math.random() * 3;
+          this.vx    = (Math.random() - 0.5) * 2;
+          this.vy    = -(1.2 + Math.random() * 2.2);
+          this.color = ['#ff2200','#ff5500','#ff8800','#ffcc00'][Math.floor(Math.random() * 4)];
+        } else if (type === 'snow') {
+          this.decay = 0.006 + Math.random() * 0.007;
+          this.size  = 2 + Math.random() * 3;
+          this.vx    = (Math.random() - 0.5) * 0.8;
+          this.vy    = 0.6 + Math.random() * 1.0;
+          this.color = ['#ffffff','#d0eeff','#b8d8ff'][Math.floor(Math.random() * 3)];
+          this.wobble = Math.random() * Math.PI * 2;
+        } else if (type === 'star') {
+          this.decay = 0.02 + Math.random() * 0.02;
+          this.size  = 1.5 + Math.random() * 2.5;
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 1 + Math.random() * 2.5;
+          this.vx    = Math.cos(angle) * speed;
+          this.vy    = Math.sin(angle) * speed - 0.5;
+          this.color = ['#ffffff','#fff8a0','#ffe040','#ffd700'][Math.floor(Math.random() * 4)];
+        } else if (type === 'rain') {
+          this.decay  = 0.012 + Math.random() * 0.012;
+          this.size   = 1 + Math.random() * 1.5;
+          this.width  = 1;
+          this.height = 6 + Math.random() * 8;
+          this.vx     = 0.5 + Math.random() * 0.5;
+          this.vy     = 5 + Math.random() * 4;
+          this.color  = '#66aaff';
+        }
+      }
+
+      update() {
+        if (this.type === 'snow') {
+          this.wobble = (this.wobble || 0) + 0.06;
+          this.x += this.vx + Math.sin(this.wobble) * 0.5;
+        } else {
+          this.x += this.vx;
+        }
+        this.y    += this.vy;
+        this.life -= this.decay;
+        if (this.type === 'fire') this.vy -= 0.04;
+      }
+
+      draw() {
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.fillStyle   = this.color;
+        if (this.type === 'rain') {
+          ctx.fillRect(this.x, this.y, this.width || 1, this.height || 8);
+        } else {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // ── Spawn from highlighted spans ────────────────────────
+    function spawnParticles(cls, type) {
+      const display = document.getElementById('text-display');
+      display.querySelectorAll('.' + cls).forEach(span => {
+        const rect       = span.getBoundingClientRect();
+        const parentRect = canvas.parentElement.getBoundingClientRect();
+        const cx = rect.left - parentRect.left + rect.width  / 2;
+        const cy = rect.top  - parentRect.top  + rect.height / 2;
+        const count = (type === 'snow' || type === 'rain') ? 1 : 2;
+        for (let i = 0; i < count; i++) {
+          particles.push(new Particle(
+            cx + (Math.random() - 0.5) * rect.width,
+            cy + (Math.random() - 0.5) * rect.height * 0.5,
+            type
+          ));
+        }
+      });
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles = particles.filter(p => p.life > 0);
+      particles.forEach(p => { p.update(); p.draw(); });
+      ctx.globalAlpha = 1;
+
+      Object.entries(particleTypes).forEach(([cls, type]) => spawnParticles(cls, type));
+      if (particles.length > 600) particles.splice(0, particles.length - 600);
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    // ── Text highlighting ───────────────────────────────────
+    function escapeHtml(t) {
+      return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function renderHighlightedText(text) {
+      const display = document.getElementById('text-display');
+      // Match any of the effect words (Korean characters)
+      const regex = /(불|눈|별|비)/g;
+      let html = '';
+      let lastIndex = 0;
+      let match;
+
+      while ((match = regex.exec(text)) !== null) {
+        html += escapeHtml(text.slice(lastIndex, match.index));
+        const word = match[0];
+        const cls  = effectWords[word];
+        html += `<span class="${cls}">${escapeHtml(word)}</span>`;
+        lastIndex = regex.lastIndex;
+      }
+      html += escapeHtml(text.slice(lastIndex));
+      display.innerHTML = html;
+    }
+
+    const textarea = document.getElementById('text-input');
+    textarea.addEventListener('input',  () => renderHighlightedText(textarea.value));
+    textarea.addEventListener('scroll', () => {
+      document.getElementById('text-display').scrollTop = textarea.scrollTop;
+    });
+
+    renderHighlightedText(textarea.value);
+  </script>
+ </body>
+</html>

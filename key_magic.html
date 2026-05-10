@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⌨️ 키보드 마법학교 v3</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#050015;font-family:'Noto Sans KR',sans-serif}
+#stars-canvas,#fx-canvas{position:fixed;inset:0;z-index:0}
+#fx-canvas{z-index:20;pointer-events:none}
+#app{position:relative;z-index:10;width:100vw;height:100vh;display:flex;flex-direction:column;padding:8px 10px 6px;gap:6px}
+
+/* 타이틀 */
+#title-bar{text-align:center;font-size:clamp(1.1rem,2.5vw,1.7rem);font-weight:900;color:#FFD700;letter-spacing:3px;text-shadow:0 0 20px #FFD700,0 0 40px orange;animation:titlePulse 3s ease-in-out infinite;flex-shrink:0}
+@keyframes titlePulse{0%,100%{text-shadow:0 0 20px #FFD700,0 0 40px orange}50%{text-shadow:0 0 30px #FFD700,0 0 60px orange,0 0 80px yellow}}
+
+#main{flex:1;display:flex;gap:8px;min-height:0}
+
+/* 스테이지 영역 */
+#stage{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;padding:10px;background:linear-gradient(135deg,rgba(20,10,60,.92),rgba(10,5,40,.92));border:2px solid #334488;border-radius:12px}
+#mission-label{font-size:clamp(.8rem,1.5vw,1rem);font-weight:700;color:#8899CC;letter-spacing:2px}
+
+/* 단계 배지 */
+#stage-badge{display:inline-block;padding:2px 10px;border-radius:8px;font-size:.78rem;font-weight:900;letter-spacing:2px}
+#stage-badge.s1{background:rgba(80,100,220,.18);color:#88AAFF;border:1px solid rgba(80,120,255,.3)}
+#stage-badge.s2{background:rgba(0,200,120,.12);color:#00FF9F;border:1px solid rgba(0,200,120,.3)}
+
+/* 글자 카드 */
+#word-row{display:flex;align-items:center;justify-content:center;gap:clamp(5px,1.1vw,12px);flex-wrap:wrap}
+.char-card{display:flex;flex-direction:column;align-items:center;width:clamp(76px,12vw,110px);border:2px solid;border-radius:12px;overflow:hidden;transition:border-color .2s,box-shadow .2s,background .2s}
+.card-top{width:100%;text-align:center;font-size:clamp(1rem,1.8vw,1.4rem);font-weight:900;padding:4px 0 3px;border-bottom:1px solid rgba(255,255,255,.06);transition:color .2s,background .2s}
+.card-bot{width:100%;text-align:center;font-size:clamp(2rem,4vw,3.5rem);font-weight:900;padding:8px 0 10px;transition:color .2s}
+.char-card.pending{border-color:rgba(40,60,130,.22);background:rgba(8,8,28,.3)}
+.char-card.pending .card-top{color:rgba(80,100,180,.28);background:rgba(0,0,20,.15)}
+.char-card.pending .card-bot{color:rgba(50,70,140,.14)}
+.char-card.waiting{border-color:#FFD700;background:rgba(255,215,0,.05);box-shadow:0 0 14px rgba(255,215,0,.28),inset 0 0 12px rgba(255,215,0,.04);animation:cardPulse 1.1s ease-in-out infinite}
+.char-card.waiting .card-top{color:#AABBEE;background:rgba(80,100,220,.09)}
+.char-card.waiting .card-bot{color:#FFD700;font-size:clamp(1.5rem,3vw,2.5rem)}
+@keyframes cardPulse{0%,100%{box-shadow:0 0 10px rgba(255,215,0,.22)}50%{box-shadow:0 0 26px rgba(255,215,0,.7)}}
+.char-card.composing{border-color:#FFB347;background:rgba(255,179,71,.07);box-shadow:0 0 12px rgba(255,179,71,.32);animation:none}
+.char-card.composing .card-top{color:#AABBEE;background:rgba(80,100,220,.09)}
+.char-card.composing .card-bot{color:#FFB347}
+.char-card.done{border-color:#00FF9F;background:rgba(0,255,159,.06);box-shadow:0 0 10px rgba(0,255,159,.22)}
+.char-card.done .card-top{color:#00FF9F;background:rgba(0,255,159,.07)}
+.char-card.done .card-bot{color:#00FF9F}
+.char-card.wrong{animation:wrongFlash .32s ease forwards!important}
+@keyframes wrongFlash{0%{background:rgba(0,0,0,0)}40%{background:rgba(255,40,40,.28);border-color:#FF5555!important;box-shadow:0 0 16px rgba(255,60,60,.5)!important}100%{background:rgba(0,0,0,0)}}
+
+/* 자모 힌트 */
+#jamo-hint{font-size:clamp(.75rem,1.4vw,1rem);font-weight:900;letter-spacing:2px;min-height:1.4em;text-align:center}
+#jamo-hint .jdone{color:rgba(120,100,60,.38);font-size:.85em}
+#jamo-hint .jcur{color:#FFD700;font-size:1.28em;text-shadow:0 0 10px rgba(255,215,0,.7)}
+#jamo-hint .jcur-sh{color:#66BBFF;font-size:1.28em;text-shadow:0 0 10px rgba(100,180,255,.8)}
+#jamo-hint .jnxt{color:#554422;font-size:.9em}
+#jamo-hint .jarr{color:#332211;font-size:.75em;margin:0 2px}
+
+/* 진행 도트 */
+#prog-dots{display:flex;gap:7px;justify-content:center}
+.pdot{width:11px;height:11px;border-radius:50%;background:rgba(60,80,160,.3);border:1.5px solid rgba(80,100,180,.22);transition:all .3s}
+.pdot.done{background:#00FF9F;border-color:#00FF9F;box-shadow:0 0 7px #00FF9F}
+.pdot.active{background:#FFD700;border-color:#FFD700;box-shadow:0 0 8px #FFD700;animation:dotPulse .9s ease-in-out infinite}
+@keyframes dotPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.35)}}
+
+/* 마법사 */
+#wiz-wrap{position:relative;width:90px;text-align:center;cursor:default}
+.hat-wrap{position:relative;width:56px;margin:0 auto;height:64px}
+.hat-star{position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:1.2rem;z-index:3;animation:hatSpin 4s linear infinite}
+@keyframes hatSpin{from{transform:translateX(-50%) rotate(0)}to{transform:translateX(-50%) rotate(360deg)}}
+.hat-cone{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);width:50px;height:56px;background:linear-gradient(180deg,#1100AA,#2200CC);clip-path:polygon(50% 0%,0% 100%,100% 100%);filter:drop-shadow(0 0 6px #5522FF)}
+.hat-brim{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:64px;height:14px;background:#3311CC;border-radius:50%;box-shadow:0 2px 8px rgba(100,0,255,.5)}
+.wiz-face{font-size:2.6rem;display:block;line-height:1;margin-top:2px}
+.wiz-body{width:56px;height:46px;margin:0 auto;background:linear-gradient(180deg,#2211AA,#1100DD);border-radius:11px 11px 18px 18px;position:relative;box-shadow:0 0 12px rgba(50,0,255,.4)}
+.wiz-wand{position:absolute;right:-16px;top:5px;width:5px;height:42px;background:linear-gradient(180deg,#C8A060,#8B5A2B);border-radius:3px;transform:rotate(22deg);transform-origin:top}
+.wiz-wand::before{content:'✨';position:absolute;top:-17px;left:-7px;font-size:1rem}
+@keyframes wJump{0%,100%{transform:translateY(0)}40%{transform:translateY(-46px) scale(1.1)}80%{transform:translateY(-10px)}}
+@keyframes wShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-12px) rotate(-5deg)}40%{transform:translateX(12px) rotate(5deg)}60%{transform:translateX(-7px)}80%{transform:translateX(7px)}}
+@keyframes wSpin{0%{transform:scale(1);filter:none}30%{transform:scale(1.5) rotate(90deg);filter:brightness(2.2) drop-shadow(0 0 20px gold)}65%{transform:scale(1.2) rotate(210deg)}100%{transform:scale(1) rotate(360deg)}}
+#wiz-wrap.jump{animation:wJump .6s ease forwards}
+#wiz-wrap.shake{animation:wShake .4s ease forwards}
+#wiz-wrap.spin{animation:wSpin .7s ease forwards}
+
+/* 미션 패널 */
+#mission-panel{width:172px;flex-shrink:0;background:linear-gradient(135deg,rgba(20,10,60,.92),rgba(10,5,40,.92));border:2px solid #334488;border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+.panel-title{padding:7px 12px;font-size:.78rem;font-weight:900;color:#FFD700;text-align:center;border-bottom:1px solid #334488;background:rgba(255,215,0,.05);letter-spacing:2px;flex-shrink:0}
+#mission-list{flex:1;overflow-y:auto;padding:5px;scrollbar-width:thin;scrollbar-color:#334488 transparent}
+.mi{display:flex;align-items:center;gap:6px;padding:6px 7px;border-radius:7px;margin-bottom:3px;font-size:.78rem;font-weight:700;color:#3d4e66;transition:all .25s;cursor:default}
+.mi.active{color:#FFD700;background:rgba(255,215,0,.07);border:1px solid rgba(255,215,0,.2)}
+.mi.done{color:#339966}
+.mi-n{min-width:16px;font-size:.65rem;opacity:.55}
+.mi-w{font-size:.95rem;font-weight:900;letter-spacing:1px}
+.mi.active .mi-w{font-size:1.05rem;text-shadow:0 0 8px rgba(255,215,0,.4)}
+.mi-ic{margin-left:auto;font-size:.85rem}
+
+/* ═══════════════════════════════════════════
+   키보드 공통 — 큰 키 (1·2단계 모두 사용)
+   ═══════════════════════════════════════════ */
+#kbd-wrap{
+  flex-shrink:0;display:flex;justify-content:center;
+  padding:8px 14px 10px;
+  background:rgba(0,0,0,.22);border-radius:12px;border:1px solid #1a2540;
+}
+.kbd-panel{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.kb-row{display:flex;gap:6px;align-items:flex-end}
+
+/* 일반 키 */
+.k2{
+  width:62px;height:62px;
+  background:rgba(7,7,17,.9);
+  border:2px solid #10141f;border-bottom:4px solid #090c14;
+  border-radius:8px;
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  padding:5px 4px 4px;
+  cursor:default;user-select:none;
+  transition:background .1s,border-color .1s,transform .1s,box-shadow .1s;
+  flex-shrink:0;
+}
+.k2.ak2{background:linear-gradient(180deg,#181840,#0e0e28);border-color:#3a4a88;border-bottom-color:#222e5c}
+.k2 .kr-sh{font-size:.72rem;font-weight:900;color:#4477AA;line-height:1;align-self:flex-end;margin-right:1px}
+.k2 .kr2{font-size:1.55rem;font-weight:900;line-height:1;color:#BBCCEE}
+.k2 .en2{font-size:.58rem;font-weight:700;color:#334466;line-height:1}
+
+/* 쉬프트 키 */
+.k2-sh{
+  width:74px;height:62px;
+  background:rgba(4,5,18,.92);
+  border:2px solid #0c1022;border-bottom:4px solid #06080e;
+  border-radius:8px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;
+  cursor:default;user-select:none;
+  transition:background .1s,border-color .1s,transform .1s,box-shadow .1s;
+  flex-shrink:0;
+}
+.k2-sh .sh-ico{font-size:1.2rem;line-height:1;color:#2a3355}
+.k2-sh .sh-txt{font-size:.55rem;font-weight:900;color:#1e2840;letter-spacing:1px}
+
+/* 키+번호 묶음 */
+.k2-cell{display:flex;flex-direction:column;align-items:center;gap:3px}
+.k2-fn{
+  font-size:1rem;font-weight:900;color:#44AACC;
+  text-shadow:0 0 7px rgba(68,170,204,.6);
+  text-align:center;line-height:1;
+}
+.k2-fn-blank{font-size:1rem;color:transparent;line-height:1}
+
+/* 왼/오른손 사이 gap 역할 div */
+.kb-hand-gap{width:22px;flex-shrink:0}
+
+/* ── next: 다음에 눌러야 할 키 (노란 점멸) */
+.k2.next{
+  background:linear-gradient(180deg,#2a2060,#1a1050)!important;
+  border-color:#FFD700!important;border-bottom-color:#AA8800!important;
+  animation:nextKey .65s ease-in-out infinite;
+}
+.k2.next .kr2{color:#FFD700!important}
+.k2.next .en2{color:#BB9900!important}
+.k2.next .kr-sh{color:#FFD700!important}
+
+/* ── shift-next: 같이 눌러야 할 쉬프트 (파란 점멸) */
+.k2-sh.shift-next{
+  background:linear-gradient(180deg,#0a1a55,#060e35)!important;
+  border-color:#66BBFF!important;border-bottom-color:#2244AA!important;
+  animation:shiftNextKey .65s ease-in-out infinite;
+}
+.k2-sh.shift-next .sh-ico{color:#66BBFF!important}
+.k2-sh.shift-next .sh-txt{color:#4488BB!important}
+
+/* ── lit: 방금 눌린 키 */
+.k2.lit{
+  background:linear-gradient(180deg,#FFD700,#FF8C00)!important;
+  border-color:#FFD700!important;border-bottom-color:#AA5500!important;
+  transform:translateY(2px)!important;
+  box-shadow:0 0 20px #FFD700,0 0 40px rgba(255,140,0,.3)!important;
+  animation:none!important;
+}
+.k2.lit .kr2,.k2.lit .en2,.k2.lit .kr-sh{color:#222!important}
+.k2-sh.lit{
+  background:linear-gradient(180deg,#55AAFF,#0055CC)!important;
+  border-color:#66BBFF!important;border-bottom-color:#003388!important;
+  transform:translateY(2px)!important;
+  box-shadow:0 0 20px #55AAFF!important;
+  animation:none!important;
+}
+.k2-sh.lit .sh-ico,.k2-sh.lit .sh-txt{color:#001122!important}
+
+@keyframes nextKey{
+  0%,100%{box-shadow:0 0 8px rgba(255,215,0,.4),0 0 0 2px rgba(255,215,0,.15)}
+  50%{box-shadow:0 0 24px rgba(255,215,0,.9),0 0 0 3px rgba(255,215,0,.4),0 0 40px rgba(255,215,0,.2)}
+}
+@keyframes shiftNextKey{
+  0%,100%{box-shadow:0 0 8px rgba(100,180,255,.4),0 0 0 2px rgba(100,180,255,.15)}
+  50%{box-shadow:0 0 24px rgba(100,180,255,.9),0 0 0 3px rgba(100,180,255,.4),0 0 40px rgba(100,180,255,.2)}
+}
+
+/* 피드백 */
+#fb{position:fixed;top:38%;left:50%;transform:translate(-50%,-50%);font-size:clamp(1.5rem,3.5vw,2rem);font-weight:900;pointer-events:none;z-index:100;opacity:0;transition:opacity .15s;text-align:center}
+#fb.ok{opacity:1;color:#00FF9F;text-shadow:0 0 20px #00FF9F,0 0 40px rgba(0,255,159,.4)}
+#fb.ng{opacity:1;color:#FF5555;text-shadow:0 0 16px #FF5555}
+
+/* 버튼 */
+#stage2-btn{
+  display:none;margin-top:8px;
+  padding:12px 32px;font-size:1.1rem;font-weight:900;
+  color:#fff;background:linear-gradient(135deg,#22AAFF,#0055CC);
+  border:none;border-radius:12px;cursor:pointer;
+  box-shadow:0 0 20px rgba(0,150,255,.5);
+  animation:s2Pulse 1.5s ease-in-out infinite;
+  font-family:'Noto Sans KR',sans-serif;letter-spacing:2px;
+}
+#stage2-btn:hover{transform:scale(1.05)}
+@keyframes s2Pulse{0%,100%{box-shadow:0 0 16px rgba(0,150,255,.4)}50%{box-shadow:0 0 32px rgba(0,150,255,.8),0 0 60px rgba(0,100,200,.3)}}
+</style>
+</head>
+<body>
+<canvas id="stars-canvas"></canvas>
+<canvas id="fx-canvas"></canvas>
+
+<div id="app">
+  <div id="title-bar">⌨️ 키보드 마법학교 ✨</div>
+  <div id="main">
+    <div id="stage">
+      <div id="stage-badge" class="s1">1단계 — 기본자리</div>
+      <div id="mission-label">미션 1 / 9</div>
+      <div id="word-row"></div>
+      <div id="jamo-hint"></div>
+      <div id="prog-dots"></div>
+      <button id="stage2-btn" onclick="startStage2()">🚀 2단계 시작!</button>
+      <div id="wiz-wrap">
+        <div class="hat-wrap"><span class="hat-star">⭐</span><div class="hat-cone"></div><div class="hat-brim"></div></div>
+        <span class="wiz-face">🧙</span>
+        <div class="wiz-body"><div class="wiz-wand"></div></div>
+      </div>
+    </div>
+    <div id="mission-panel">
+      <div class="panel-title">🎯 미션 목록</div>
+      <div id="mission-list"></div>
+    </div>
+  </div>
+
+  <!-- 키보드 (1·2단계 모두 여기에 렌더링) -->
+  <div id="kbd-wrap">
+    <div class="kbd-panel" id="kbd-panel"></div>
+  </div>
+</div>
+<div id="fb"></div>
+
+<script>
+// ── STARS ──────────────────────────────────────────────────────────
+const SC=document.getElementById('stars-canvas'),sc=SC.getContext('2d');
+const STARS=Array.from({length:160},()=>({rx:Math.random(),ry:Math.random(),r:Math.random()*1.3+.3,ph:Math.random()*Math.PI*2,sp:Math.random()*.025+.005}));
+const FC=document.getElementById('fx-canvas'),fc=FC.getContext('2d');
+const P=[];
+const spP=(t,o)=>P.push({t,...o});
+function resize(){SC.width=FC.width=window.innerWidth;SC.height=FC.height=window.innerHeight;}
+resize();window.addEventListener('resize',resize);
+function drawP(p){
+  switch(p.t){
+    case 'spark':p.x+=p.vx;p.y+=p.vy;p.vy+=.14;fc.beginPath();fc.arc(p.x,p.y,Math.max(.4,p.s*p.life),0,Math.PI*2);fc.fillStyle=p.c;fc.fill();break;
+    case 'ring':p.r=(1-p.life)*p.maxR;fc.beginPath();fc.arc(p.x,p.y,Math.max(1,p.r),0,Math.PI*2);fc.strokeStyle=p.c;fc.lineWidth=p.lw*p.life;fc.stroke();break;
+    case 'popup':p.y+=p.vy;fc.font=`900 ${Math.round(18+14*(1-p.life))}px "Noto Sans KR"`;fc.textAlign='center';fc.fillStyle=p.c;fc.fillText(p.txt,p.x,p.y);fc.textAlign='left';break;
+  }
+}
+let tick=0;
+function loop(){
+  tick+=.016;
+  sc.clearRect(0,0,SC.width,SC.height);
+  for(const s of STARS){const a=.2+.8*(.5+.5*Math.sin(s.ph+tick*s.sp*60));sc.beginPath();sc.arc(s.rx*SC.width,s.ry*SC.height,s.r,0,Math.PI*2);sc.fillStyle=`rgba(255,255,255,${a})`;sc.fill();}
+  fc.clearRect(0,0,FC.width,FC.height);
+  for(let i=P.length-1;i>=0;i--){const p=P[i];p.life-=p.decay;if(p.life<=0){P.splice(i,1);continue;}fc.globalAlpha=p.life;drawP(p);}
+  fc.globalAlpha=1;
+  requestAnimationFrame(loop);
+}
+loop();
+
+const CX=()=>FC.width/2, CY=()=>FC.height*.42;
+function fxChar(){const x=CX(),y=CY();for(let i=0;i<14;i++){const a=Math.random()*Math.PI*2,v=Math.random()*6+2;spP('spark',{x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-1.5,life:1,decay:.032,s:4,c:`hsl(${120+Math.random()*60},100%,70%)`});}}
+function fxWord(){const x=CX(),y=CY();for(let i=0;i<55;i++){const a=Math.random()*Math.PI*2,v=Math.random()*10+4;spP('spark',{x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-2,life:1,decay:.018,s:5,c:`hsl(${Math.random()*360},100%,70%)`});}for(let i=0;i<3;i++)spP('ring',{x,y,r:0,maxR:80+i*48,life:1,decay:.014+i*.006,c:'#FFD700',lw:3});spP('popup',{x,y:y-20,vy:-1.3,life:1,decay:.011,c:'#FFD700',txt:'🎉 정답!'});}
+function fxAll(){const x=CX(),y=FC.height*.5;for(let i=0;i<100;i++){const a=Math.random()*Math.PI*2,v=Math.random()*14+5;spP('spark',{x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-2,life:1,decay:.012,s:7,c:`hsl(${Math.random()*360},100%,70%)`});}for(let i=0;i<4;i++)spP('ring',{x,y,r:0,maxR:60+i*60,life:1,decay:.01+i*.003,c:'#FFD700',lw:4});}
+
+// ── 한글 분해 ────────────────────────────────────────────────────────
+const CHO=['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const JUNG=['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ'];
+const JONG=['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+function decompose(ch){
+  const code=ch.charCodeAt(0)-0xAC00;
+  if(code<0||code>11171)return null;
+  const jong=JONG[code%28];
+  return{cho:CHO[Math.floor(code/588)],jung:JUNG[Math.floor((code%588)/28)],jong:jong||null};
+}
+
+// ── 자모→키ID 매핑 (ID는 'vk-' prefix 없이) ─────────────────────────
+// 1단계: s1-a, s1-s, ...
+const JAM_KEY_S1={'ㅁ':'s1-a','ㄴ':'s1-s','ㅇ':'s1-d','ㄹ':'s1-f','ㅓ':'s1-j','ㅏ':'s1-k','ㅣ':'s1-l',';':'s1-semi'};
+// 2단계: s2-q, s2-a, ...
+const JAM_KEY_S2={
+  'ㅂ':'s2-q','ㅃ':'s2-q','ㅈ':'s2-w','ㅉ':'s2-w',
+  'ㄷ':'s2-e','ㄸ':'s2-e','ㄱ':'s2-r','ㄲ':'s2-r',
+  'ㅁ':'s2-a','ㄴ':'s2-s','ㅇ':'s2-d','ㄹ':'s2-f',
+  'ㅓ':'s2-j','ㅏ':'s2-k','ㅣ':'s2-l',';':'s2-semi'
+};
+// 쉬프트 필요한 자모
+const SHIFT_JAMO=new Set(['ㅃ','ㅉ','ㄸ','ㄲ']);
+
+// e.code → 자모 (단계별)
+const CODE_JAM_S1={'KeyA':'ㅁ','KeyS':'ㄴ','KeyD':'ㅇ','KeyF':'ㄹ','KeyJ':'ㅓ','KeyK':'ㅏ','KeyL':'ㅣ','Semicolon':';'};
+const CODE_JAM_S2_NORM={'KeyQ':'ㅂ','KeyW':'ㅈ','KeyE':'ㄷ','KeyR':'ㄱ','KeyA':'ㅁ','KeyS':'ㄴ','KeyD':'ㅇ','KeyF':'ㄹ','KeyJ':'ㅓ','KeyK':'ㅏ','KeyL':'ㅣ','Semicolon':';'};
+const CODE_JAM_S2_SHIFT={'KeyQ':'ㅃ','KeyW':'ㅉ','KeyE':'ㄸ','KeyR':'ㄲ'};
+
+// ── 시퀀스 생성 ─────────────────────────────────────────────────────
+function buildSeqs(words,jamKey){
+  return words.map(word=>{
+    const sylls=[];
+    for(const ch of word){
+      if(ch===';'){
+        sylls.push({target:';',jamo:[{jamo:';',key:'s'+(jamKey===JAM_KEY_S1?'1':'2')+'-semi',shift:false}]});
+      } else {
+        const d=decompose(ch);
+        if(!d){sylls.push({target:ch,jamo:[{jamo:ch,key:null,shift:false}]});continue;}
+        const jamoArr=[
+          {jamo:d.cho,key:jamKey[d.cho]||null,shift:SHIFT_JAMO.has(d.cho)},
+          {jamo:d.jung,key:jamKey[d.jung]||null,shift:false}
+        ];
+        if(d.jong)jamoArr.push({jamo:d.jong,key:jamKey[d.jong]||null,shift:false});
+        sylls.push({target:ch,jamo:jamoArr});
+      }
+    }
+    return sylls;
+  });
+}
+
+const S1_WORDS=['어머니','머리','나이','나라','어머;;'];
+const S2_WORDS=['바다','바지','짜다;;'];
+const S1_SEQS=buildSeqs(S1_WORDS,JAM_KEY_S1);
+const S2_SEQS=buildSeqs(S2_WORDS,JAM_KEY_S2);
+
+// ── 게임 상태 ──────────────────────────────────────────────────────
+let curStage=1,curM=0,syllIdx=0,jamoPos=0,busy=false;
+function getWords(){return curStage===1?S1_WORDS:S2_WORDS;}
+function getSeqs(){return curStage===1?S1_SEQS:S2_SEQS;}
+function curSyll(){return getSeqs()[curM]?.[syllIdx];}
+function curJamoObj(){return curSyll()?.jamo?.[jamoPos];}
+
+// ── 키보드 빌더 ────────────────────────────────────────────────────
+function makeCell(keyEl,fnTxt){
+  const cell=document.createElement('div');
+  cell.className='k2-cell';
+  cell.appendChild(keyEl);
+  const fn=document.createElement('div');
+  fn.className=fnTxt!=null?'k2-fn':'k2-fn-blank';
+  fn.textContent=fnTxt!=null?fnTxt:'0';
+  cell.appendChild(fn);
+  return cell;
+}
+
+function makeKey(id,kr,en,krSh,fn){
+  const k=document.createElement('div');
+  k.className='k2 ak2';
+  k.id='vk-'+id;
+  k.innerHTML=(krSh?`<span class="kr-sh">${krSh}</span>`:`<span class="kr-sh" style="visibility:hidden">·</span>`)
+    +`<span class="kr2">${kr}</span><span class="en2">${en}</span>`;
+  return makeCell(k,fn);
+}
+
+function makeShift(id,fn){
+  const k=document.createElement('div');
+  k.className='k2-sh';
+  k.id='vk-'+id;
+  k.innerHTML='<span class="sh-ico">⇧</span><span class="sh-txt">Shift</span>';
+  return makeCell(k,fn);
+}
+
+function buildKbd(stage){
+  const panel=document.getElementById('kbd-panel');
+  panel.innerHTML='';
+  const p=stage===1?'s1':'s2';  // prefix
+
+  // ── 2단계: 윗줄 (QWER) — A 위에 정렬 ──
+  if(stage===2){
+    const row1=document.createElement('div');
+    row1.className='kb-row';
+    // 왼쪽 spacer = shift(74) + gap(6) = 80px
+    const sp=document.createElement('div');sp.style.width='80px';sp.style.flexShrink='0';
+    row1.appendChild(sp);
+    row1.appendChild(makeKey('s2-q','ㅂ','Q','⇧ㅃ',5));
+    row1.appendChild(makeKey('s2-w','ㅈ','W','⇧ㅉ',4));
+    row1.appendChild(makeKey('s2-e','ㄷ','E','⇧ㄸ',3));
+    row1.appendChild(makeKey('s2-r','ㄱ','R','⇧ㄲ',2));
+    panel.appendChild(row1);
+  }
+
+  // ── 기본자리 (ASDf + gap + JKL;) + 양쪽 Shift ──
+  const row2=document.createElement('div');
+  row2.className='kb-row';
+
+  row2.appendChild(makeShift(`${p}-lshift`,null));
+
+  row2.appendChild(makeKey(`${p}-a`,'ㅁ','A',null,5));
+  row2.appendChild(makeKey(`${p}-s`,'ㄴ','S',null,4));
+  row2.appendChild(makeKey(`${p}-d`,'ㅇ','D',null,3));
+  row2.appendChild(makeKey(`${p}-f`,'ㄹ','F',null,2));
+
+  // 손 사이 gap
+  const gap=document.createElement('div');gap.className='kb-hand-gap';
+  row2.appendChild(gap);
+
+  row2.appendChild(makeKey(`${p}-j`,'ㅓ','J',null,2));
+  row2.appendChild(makeKey(`${p}-k`,'ㅏ','K',null,3));
+  row2.appendChild(makeKey(`${p}-l`,'ㅣ','L',null,4));
+  row2.appendChild(makeKey(`${p}-semi`,';',';',null,5));
+
+  row2.appendChild(makeShift(`${p}-rshift`,null));
+
+  panel.appendChild(row2);
+}
+
+// ── 키 하이라이트 ──────────────────────────────────────────────────
+function clearHighlights(){
+  document.querySelectorAll('.k2.next,.k2.lit').forEach(k=>k.classList.remove('next','lit'));
+  document.querySelectorAll('.k2-sh.shift-next,.k2-sh.lit').forEach(k=>k.classList.remove('shift-next','lit'));
+}
+
+function setNextKey(keyId,needsShift){
+  clearHighlights();
+  if(keyId){const el=document.getElementById('vk-'+keyId);if(el)el.classList.add('next');}
+  if(needsShift){
+    const shId='vk-'+(curStage===1?'s1':'s2')+'-lshift';
+    const sh=document.getElementById(shId);if(sh)sh.classList.add('shift-next');
+  }
+}
+
+function litKey(keyId,wasShift){
+  const el=document.getElementById('vk-'+keyId);
+  if(el){el.classList.remove('next');el.classList.add('lit');setTimeout(()=>el.classList.remove('lit'),280);}
+  if(wasShift){
+    const shId='vk-'+(curStage===1?'s1':'s2')+'-lshift';
+    const sh=document.getElementById(shId);
+    if(sh){sh.classList.remove('shift-next');sh.classList.add('lit');setTimeout(()=>sh.classList.remove('lit'),280);}
+  }
+}
+
+// ── 자모 힌트 ──────────────────────────────────────────────────────
+function updateHint(){
+  const hint=document.getElementById('jamo-hint');
+  const words=getWords();const seqs=getSeqs();
+  if(curM>=words.length){hint.innerHTML='';return;}
+  const seq=seqs[curM];
+  const all=[];
+  for(const syll of seq)for(const j of syll.jamo)all.push(j);
+  let done=0;
+  for(let si=0;si<syllIdx;si++)done+=seq[si].jamo.length;
+  done+=jamoPos;
+  hint.innerHTML=all.map((j,i)=>{
+    if(i<done)return`<span class="jdone">${j.jamo}</span>`;
+    if(i===done)return j.shift?`<span class="jcur-sh">⇧${j.jamo}</span>`:`<span class="jcur">${j.jamo}</span>`;
+    return`<span class="jnxt">${j.jamo}</span>`;
+  }).join('<span class="jarr">→</span>');
+}
+
+// ── 미션 목록 ──────────────────────────────────────────────────────
+function renderMissions(){
+  const words=getWords();
+  const el=document.getElementById('mission-list');
+  el.innerHTML='';
+  words.forEach((w,i)=>{
+    const d=document.createElement('div');
+    d.className='mi'+(i<curM?' done':i===curM?' active':'');
+    d.innerHTML=`<span class="mi-n">${i+1}.</span><span class="mi-w">${w}</span><span class="mi-ic">${i<curM?'✅':i===curM?'🎯':''}</span>`;
+    el.appendChild(d);
+  });
+  const act=el.querySelector('.mi.active');
+  if(act)act.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+
+// ── 단어 카드 ──────────────────────────────────────────────────────
+function renderWord(){
+  const words=getWords();const seqs=getSeqs();
+  const ml=document.getElementById('mission-label');
+  const row=document.getElementById('word-row');
+  const s2btn=document.getElementById('stage2-btn');
+
+  if(curM>=words.length){
+    s2btn.style.display='none';
+    if(curStage===1){
+      ml.textContent='🎉 1단계 완료!';
+      row.innerHTML='<div style="font-size:3rem;filter:drop-shadow(0 0 20px #22AAFF)">🏆</div>';
+      setTimeout(()=>startStage2(),2000);
+    } else {
+      // 2단계 최종 완료 — 칭찬으로 마무리, 다시 시작 없음
+      ml.textContent='🏆 2단계 완료!';
+      row.innerHTML=`
+        <div style="text-align:center;padding:6px 12px">
+          <div style="font-size:2.8rem;margin-bottom:8px;filter:drop-shadow(0 0 16px gold)">🏆 🌟 🎉</div>
+          <div style="font-size:1.35rem;font-weight:900;color:#FFD700;text-shadow:0 0 18px #FFD700;letter-spacing:3px">정말 잘했어요!</div>
+          <div style="font-size:.95rem;font-weight:700;color:#88AAFF;margin-top:7px;letter-spacing:1px">왼손 윗자리까지 완벽 마스터! 💪</div>
+          <div style="font-size:.82rem;color:#557799;margin-top:5px">키보드 마법사가 되었어요 ✨</div>
+        </div>`;
+    }
+    return;
+  }
+
+  s2btn.style.display='none';
+  ml.textContent=`미션 ${curM+1} / ${words.length}`;
+  const seq=seqs[curM];
+  row.innerHTML=seq.map((syll,si)=>{
+    let state,bot;
+    if(si<syllIdx){state='done';bot=syll.target;}
+    else if(si===syllIdx){
+      if(jamoPos===0){state='waiting';bot='_';}
+      else{state='composing';bot=syll.jamo[jamoPos-1].jamo;}
+    } else{state='pending';bot='';}
+    return`<div class="char-card ${state}"><div class="card-top">${syll.target}</div><div class="card-bot">${bot}</div></div>`;
+  }).join('');
+}
+
+function renderWordAllDone(){
+  const seq=getSeqs()[curM];
+  document.getElementById('word-row').innerHTML=seq.map(s=>
+    `<div class="char-card done"><div class="card-top">${s.target}</div><div class="card-bot">${s.target}</div></div>`
+  ).join('');
+}
+
+// ── 진행 도트 ──────────────────────────────────────────────────────
+function renderDots(){
+  const words=getWords();
+  document.getElementById('prog-dots').innerHTML=words.map((_,i)=>
+    `<div class="pdot${i<curM?' done':i===curM?' active':''}"></div>`
+  ).join('');
+}
+
+// ── 마법사 ─────────────────────────────────────────────────────────
+function wizAnim(cls){
+  const w=document.getElementById('wiz-wrap');
+  w.classList.remove('jump','shake','spin');void w.offsetWidth;w.classList.add(cls);
+  setTimeout(()=>w.classList.remove(cls),750);
+}
+
+// ── 피드백 ─────────────────────────────────────────────────────────
+let fbT=null;
+function showFb(txt,ok){
+  const el=document.getElementById('fb');
+  el.textContent=txt;el.className=ok?'ok':'ng';
+  clearTimeout(fbT);fbT=setTimeout(()=>el.className='',900);
+}
+
+// ── 정답 처리 ──────────────────────────────────────────────────────
+function onCorrect(jObj){
+  litKey(jObj.key,jObj.shift);
+  fxChar();
+  const syll=curSyll();
+  jamoPos++;
+  if(jamoPos>=syll.jamo.length){
+    jamoPos=0;syllIdx++;
+    if(syllIdx>=getSeqs()[curM].length){
+      renderWordAllDone();updateHint();setNextKey(null,false);
+      busy=true;wizAnim('spin');fxWord();showFb('✨ 정답!',true);
+      setTimeout(()=>{
+        curM++;syllIdx=0;jamoPos=0;busy=false;
+        renderMissions();renderDots();renderWord();
+        if(curM>=getWords().length){
+          wizAnim('spin');fxAll();updateHint();setNextKey(null,false);
+        } else {
+          const nj=curJamoObj();updateHint();setNextKey(nj?.key||null,nj?.shift||false);
+        }
+      },1300);
+      return;
+    }
+  }
+  renderWord();updateHint();
+  const nj=curJamoObj();setNextKey(nj?.key||null,nj?.shift||false);
+}
+
+function onWrong(){
+  wizAnim('shake');showFb('❌',false);
+  document.querySelectorAll('.char-card.waiting,.char-card.composing').forEach(c=>{
+    c.classList.add('wrong');setTimeout(()=>c.classList.remove('wrong'),380);
+  });
+}
+
+// ── 2단계 시작 ──────────────────────────────────────────────────────
+function startStage2(){
+  curStage=2;curM=0;syllIdx=0;jamoPos=0;busy=false;
+  document.getElementById('stage2-btn').style.display='none';
+  const badge=document.getElementById('stage-badge');
+  badge.textContent='2단계 — 왼손 윗자리';badge.className='s2';
+  buildKbd(2);
+  renderMissions();renderDots();renderWord();updateHint();
+  const nj=curJamoObj();setNextKey(nj?.key||null,nj?.shift||false);
+}
+
+// ── 키보드 입력 ────────────────────────────────────────────────────
+document.addEventListener('keydown',e=>{
+  if(['Control','Alt','Meta','CapsLock','Tab','Escape','Enter','Backspace'].includes(e.key))return;
+  if(e.key==='Shift')return;
+  e.preventDefault();
+  if(busy||curM>=getWords().length)return;
+
+  let typed;
+  if(curStage===2){
+    if(e.shiftKey)typed=CODE_JAM_S2_SHIFT[e.code];
+    if(!typed)typed=CODE_JAM_S2_NORM[e.code];
+  } else {
+    typed=CODE_JAM_S1[e.code];
+  }
+  if(!typed)return;
+
+  const jObj=curJamoObj();
+  if(!jObj)return;
+  if(typed===jObj.jamo)onCorrect(jObj);
+  else onWrong();
+});
+
+// ── 초기화 ─────────────────────────────────────────────────────────
+buildKbd(1);
+renderMissions();renderDots();renderWord();updateHint();
+const ij=curJamoObj();setNextKey(ij?.key||null,ij?.shift||false);
+</script>
+</body>
+</html>

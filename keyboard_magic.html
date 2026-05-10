@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⌨️ 키보드 마법학교</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#050015;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-serif}
+
+#stars-canvas{position:fixed;inset:0;z-index:0}
+#fx-canvas{position:fixed;inset:0;z-index:20;pointer-events:none}
+
+#app{
+  position:relative;z-index:10;
+  width:100vw;height:100vh;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:space-between;
+  padding:16px 16px 12px;
+}
+
+/* TITLE */
+#title{
+  font-size:clamp(1.4rem,3.5vw,2.2rem);font-weight:900;
+  color:#FFD700;letter-spacing:3px;text-align:center;
+  text-shadow:0 0 20px #FFD700,0 0 40px orange;
+  animation:titlePulse 3s ease-in-out infinite;
+}
+@keyframes titlePulse{
+  0%,100%{text-shadow:0 0 20px #FFD700,0 0 40px orange}
+  50%{text-shadow:0 0 30px #FFD700,0 0 60px orange,0 0 80px yellow}
+}
+
+/* STAGE */
+#stage{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:0;
+  position:relative;width:100%;
+}
+
+/* BUBBLE */
+#bubble-wrap{min-height:90px;display:flex;align-items:flex-end;justify-content:center;margin-bottom:10px}
+#bubble{
+  position:relative;
+  background:linear-gradient(135deg,#1a0060,#0d004a);
+  border:3px solid #FFD700;border-radius:20px;
+  padding:12px 22px;text-align:center;
+  box-shadow:0 0 25px rgba(255,215,0,.4),inset 0 0 30px rgba(100,0,255,.2);
+  opacity:0;transform:translateY(8px) scale(.9);
+  transition:opacity .25s,transform .25s;
+  max-width:min(480px,90vw);
+}
+#bubble.on{opacity:1;transform:translateY(0) scale(1)}
+#bubble::after{
+  content:'';position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);
+  border:8px solid transparent;border-top-color:#FFD700;
+}
+#bubble-main{font-size:clamp(1.3rem,3.2vw,1.9rem);font-weight:900;color:#FFD700;line-height:1.35;white-space:pre-wrap}
+#bubble-sub{font-size:clamp(.85rem,1.8vw,1rem);color:#00BFFF;margin-top:5px;font-weight:700}
+
+/* WIZARD */
+#wizard{
+  position:relative;width:110px;text-align:center;
+  cursor:default;user-select:none;
+  transform-origin:bottom center;
+}
+.hat-wrap{position:relative;width:70px;margin:0 auto;height:82px}
+.hat-star{
+  position:absolute;top:0;left:50%;transform:translateX(-50%);
+  font-size:1.5rem;z-index:3;
+  animation:hatStarSpin 4s linear infinite;
+}
+@keyframes hatStarSpin{from{transform:translateX(-50%) rotate(0)}to{transform:translateX(-50%) rotate(360deg)}}
+.hat-cone{
+  position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
+  width:60px;height:68px;
+  background:linear-gradient(180deg,#1100AA,#2200CC);
+  clip-path:polygon(50% 0%,0% 100%,100% 100%);
+  filter:drop-shadow(0 0 8px #5522FF);
+}
+.hat-brim{
+  position:absolute;bottom:0;left:50%;transform:translateX(-50%);
+  width:76px;height:18px;
+  background:#3311CC;border-radius:50%;
+  box-shadow:0 2px 10px rgba(100,0,255,.6);
+}
+.wiz-face{font-size:3.2rem;display:block;line-height:1;margin-top:2px;transition:all .2s}
+.wiz-body{
+  width:68px;height:56px;margin:0 auto;
+  background:linear-gradient(180deg,#2211AA,#1100DD);
+  border-radius:14px 14px 22px 22px;
+  position:relative;
+  box-shadow:0 0 15px rgba(50,0,255,.5);
+}
+.wiz-wand{
+  position:absolute;right:-22px;top:8px;
+  width:6px;height:50px;
+  background:linear-gradient(180deg,#C8A060,#8B5A2B);
+  border-radius:3px;transform:rotate(25deg);transform-origin:top;
+}
+.wiz-wand::before{content:'✨';position:absolute;top:-22px;left:-10px;font-size:1.3rem}
+
+/* Wizard animations */
+@keyframes wJump{0%,100%{transform:translateY(0)}40%{transform:translateY(-65px) scale(1.1)}80%{transform:translateY(-15px)}}
+@keyframes wShake{0%,100%{transform:translateX(0) rotate(0)}15%{transform:translateX(-18px) rotate(-8deg)}30%{transform:translateX(18px) rotate(8deg)}45%{transform:translateX(-10px) rotate(-4deg)}60%{transform:translateX(10px) rotate(4deg)}80%{transform:translateX(-4px)}}
+@keyframes wGrow{0%{transform:scale(1);filter:none}40%{transform:scale(2.1);filter:brightness(2) drop-shadow(0 0 30px gold)}70%{transform:scale(1.4);filter:brightness(1.4)}100%{transform:scale(1);filter:none}}
+@keyframes wSpin{from{transform:rotate(0) scale(1)}50%{transform:rotate(180deg) scale(.7)}to{transform:rotate(360deg) scale(1)}}
+@keyframes wWave{0%,100%{transform:rotate(0)}30%{transform:rotate(-15deg)}70%{transform:rotate(15deg)}}
+@keyframes wClone{0%{transform:scale(1);filter:none}30%{transform:scaleX(1.35);filter:hue-rotate(120deg) brightness(1.6)}60%{transform:scaleX(.9) scaleY(1.1)}100%{transform:scale(1);filter:none}}
+@keyframes wPowerUp{0%{transform:scale(1);filter:none}35%{transform:scale(1.6) translateY(-8px);filter:brightness(3) saturate(2)}65%{transform:scale(1.9);filter:brightness(2) saturate(3) hue-rotate(30deg)}100%{transform:scale(1);filter:none}}
+
+#wizard.j{animation:wJump .6s ease forwards}
+#wizard.s{animation:wShake .5s ease forwards}
+#wizard.g{animation:wGrow .7s ease forwards}
+#wizard.r{animation:wSpin .5s ease forwards}
+#wizard.w{animation:wWave .4s ease forwards}
+#wizard.c{animation:wClone .5s ease forwards}
+#wizard.p{animation:wPowerUp .8s ease forwards}
+
+/* KEY HINT */
+#key-hint{
+  font-size:clamp(.85rem,1.8vw,1rem);
+  color:rgba(170,190,255,.5);text-align:center;
+  margin-top:10px;transition:all .3s;min-height:26px;
+}
+
+/* VIRTUAL KEYBOARD */
+#vkb{display:flex;flex-direction:column;align-items:center;gap:5px;padding-bottom:2px}
+.kb-row{display:flex;gap:5px}
+.k{
+  height:42px;min-width:44px;
+  background:linear-gradient(180deg,#181840,#0e0e28);
+  border:2px solid #334488;border-bottom:4px solid #223366;
+  border-radius:7px;color:#8899CC;
+  font-family:'Noto Sans KR',sans-serif;font-size:.75rem;font-weight:700;
+  padding:0 10px;display:flex;align-items:center;justify-content:center;
+  cursor:default;user-select:none;transition:all .15s;white-space:nowrap;
+}
+.k[data-w="lg"]{min-width:86px}
+.k[data-w="xl"]{min-width:108px}
+.k[data-w="sp"]{min-width:260px}
+.k.lit{
+  background:linear-gradient(180deg,#FFD700,#FF8C00)!important;
+  border-color:#FFD700!important;border-bottom-color:#CC7000!important;
+  color:#111!important;transform:translateY(3px)!important;
+  box-shadow:0 0 20px #FFD700,0 0 40px rgba(255,140,0,.5)!important;
+}
+.k.lit2{
+  background:linear-gradient(180deg,#00FF9F,#00CC7A)!important;
+  border-color:#00FF9F!important;color:#111!important;
+  transform:translateY(3px)!important;box-shadow:0 0 20px #00FF9F!important;
+}
+</style>
+</head>
+<body>
+<canvas id="stars-canvas"></canvas>
+<canvas id="fx-canvas"></canvas>
+
+<div id="app">
+  <div id="title">⌨️ 키보드 마법학교 ✨</div>
+
+  <div id="stage">
+    <div id="bubble-wrap">
+      <div id="bubble">
+        <div id="bubble-main">어떤 키든 눌러봐! 🎮</div>
+        <div id="bubble-sub">키보드 마법을 써보자!</div>
+      </div>
+    </div>
+
+    <div id="wizard">
+      <div class="hat-wrap">
+        <span class="hat-star">⭐</span>
+        <div class="hat-cone"></div>
+        <div class="hat-brim"></div>
+      </div>
+      <span class="wiz-face">🧙</span>
+      <div class="wiz-body"><div class="wiz-wand"></div></div>
+    </div>
+
+    <div id="key-hint">← 키보드의 어떤 키든 눌러봐! →</div>
+  </div>
+
+  <div id="vkb">
+    <div class="kb-row">
+      <div class="k" id="vk-esc">ESC</div>
+      <div class="k" id="vk-caps" data-w="lg">CAPS LOCK</div>
+      <div class="k" id="vk-shift" data-w="xl">SHIFT ⬆</div>
+      <div class="k" id="vk-ctrl" data-w="lg">CTRL</div>
+      <div class="k" id="vk-hanen" data-w="lg">한 / 영</div>
+      <div class="k" id="vk-enter" data-w="xl">ENTER ↵</div>
+      <div class="k" id="vk-back" data-w="xl">← 지우기</div>
+    </div>
+    <div class="kb-row">
+      <div class="k" id="vk-space" data-w="sp">SPACE (스페이스)</div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+// ── PRETEXT (text measurement for bubble sizing) ──────────────────
+let ptPrepare = null, ptLayout = null;
+try {
+  const m = await import('https://esm.sh/@chenglou/pretext');
+  ptPrepare = m.prepare; ptLayout = m.layout;
+  console.log('✅ pretext loaded');
+} catch(e) { console.warn('pretext fallback:', e.message); }
+
+function measureText(text, fontSize) {
+  const font = `900 ${fontSize}px "Noto Sans KR"`;
+  const maxW = Math.min(460, window.innerWidth * 0.82) - 48;
+  if (ptPrepare && ptLayout) {
+    try {
+      const prep = ptPrepare(text, font, { wordBreak: 'keep-all' });
+      const res  = ptLayout(prep, maxW, 1.4);
+      return { lines: res.lineCount, width: maxW + 48 };
+    } catch(_) {}
+  }
+  // Canvas fallback
+  const cv = document.createElement('canvas');
+  const cx = cv.getContext('2d');
+  cx.font = font;
+  const w = cx.measureText(text.replace(/\n/g,' ')).width;
+  return { lines: text.split('\n').length, width: Math.min(w + 48, maxW + 48) };
+}
+
+// ── STARS ─────────────────────────────────────────────────────────
+const SC = document.getElementById('stars-canvas');
+const sc = SC.getContext('2d');
+const STARS = Array.from({length:200}, () => ({
+  rx: Math.random(), ry: Math.random(),
+  r: Math.random()*1.4+.3,
+  ph: Math.random()*Math.PI*2,
+  sp: Math.random()*.03+.005,
+}));
+
+// ── PARTICLES ─────────────────────────────────────────────────────
+const FC = document.getElementById('fx-canvas');
+const fc = FC.getContext('2d');
+const P = []; // particle pool
+
+function resize() {
+  SC.width = FC.width = window.innerWidth;
+  SC.height = FC.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── MAIN LOOP ─────────────────────────────────────────────────────
+let t = 0;
+function loop() {
+  t += .016;
+
+  // Stars
+  sc.clearRect(0,0,SC.width,SC.height);
+  for (const s of STARS) {
+    const a = .25 + .75*(0.5+0.5*Math.sin(s.ph + t*s.sp*60));
+    sc.beginPath();
+    sc.arc(s.rx*SC.width, s.ry*SC.height, s.r, 0, Math.PI*2);
+    sc.fillStyle = `rgba(255,255,255,${a})`;
+    sc.fill();
+  }
+
+  // Particles
+  fc.clearRect(0,0,FC.width,FC.height);
+  for (let i = P.length-1; i >= 0; i--) {
+    const p = P[i];
+    p.life -= p.decay;
+    if (p.life <= 0) { P.splice(i,1); continue; }
+    fc.globalAlpha = p.life;
+    drawP(p);
+  }
+  fc.globalAlpha = 1;
+
+  requestAnimationFrame(loop);
+}
+loop();
+
+function drawP(p) {
+  const W = FC.width, H = FC.height;
+  switch(p.t) {
+    case 'spark':
+      p.x += p.vx; p.y += p.vy; p.vy += .15;
+      fc.beginPath(); fc.arc(p.x,p.y, p.s*p.life+.5, 0, Math.PI*2);
+      fc.fillStyle = p.c; fc.fill(); break;
+
+    case 'rise':
+      p.x += p.vx; p.y += p.vy; p.vy -= .04;
+      fc.font = `${Math.round(p.s*p.life+4)}px serif`;
+      fc.fillStyle = p.c; fc.fillText(p.glyph, p.x, p.y); break;
+
+    case 'pacman':
+      p.x += p.vx;
+      p.mouth += p.md*.12;
+      if (p.mouth>.38) p.md=-1; if (p.mouth<.02) p.md=1;
+      for (const d of P) {
+        if (d.t==='dot' && !d.eaten && d.x>p.x-5 && d.x<p.x+p.s) {
+          d.eaten=true; d.life=0;
+        }
+      }
+      fc.beginPath();
+      fc.arc(p.x,p.y, p.s, p.mouth*Math.PI, (2-p.mouth)*Math.PI);
+      fc.lineTo(p.x,p.y);
+      fc.fillStyle='#FFD700'; fc.fill(); break;
+
+    case 'dot':
+      fc.beginPath(); fc.arc(p.x,p.y,6,0,Math.PI*2);
+      fc.fillStyle='#FF8888'; fc.fill(); break;
+
+    case 'ring':
+      p.r = (1-p.life)*p.maxR;
+      fc.beginPath(); fc.arc(p.x,p.y,Math.max(1,p.r),0,Math.PI*2);
+      fc.strokeStyle=p.c; fc.lineWidth=p.lw*p.life; fc.stroke(); break;
+
+    case 'arrow':
+      p.x+=p.vx; p.y+=p.vy;
+      fc.font=`bold ${p.s}px serif`;
+      fc.fillStyle=p.c; fc.fillText('➡',p.x,p.y); break;
+
+    case 'clock':
+      p.angle += p.spd;
+      fc.beginPath(); fc.arc(p.x,p.y,p.s,0,Math.PI*2);
+      fc.strokeStyle='#FFD700'; fc.lineWidth=3; fc.stroke();
+      // hour
+      fc.beginPath(); fc.moveTo(p.x,p.y);
+      fc.lineTo(p.x+Math.cos(p.angle)*p.s*.55, p.y+Math.sin(p.angle)*p.s*.55);
+      fc.strokeStyle='#FF4444'; fc.lineWidth=4; fc.stroke();
+      // minute
+      fc.beginPath(); fc.moveTo(p.x,p.y);
+      fc.lineTo(p.x+Math.cos(p.angle*12)*p.s*.82, p.y+Math.sin(p.angle*12)*p.s*.82);
+      fc.strokeStyle='#fff'; fc.lineWidth=2; fc.stroke(); break;
+
+    case 'letter':
+      p.x+=p.vx; p.y+=p.vy;
+      const ch = p.life > .5 ? p.krCh : p.enCh;
+      fc.font = `900 ${p.s}px "Noto Sans KR"`;
+      fc.textAlign = 'center';
+      fc.fillStyle = p.life>.5 ? `rgba(255,160,80,${p.life})` : `rgba(80,200,255,${p.life})`;
+      fc.fillText(ch, p.x, p.y);
+      fc.textAlign = 'left'; break;
+
+    case 'popup':
+      p.y += p.vy;
+      fc.font = `900 ${Math.round(22+20*(1-p.life))}px "Noto Sans KR"`;
+      fc.textAlign='center'; fc.fillStyle=p.c;
+      fc.fillText(p.txt, p.x, p.y);
+      fc.textAlign='left'; break;
+  }
+}
+
+// ── SPAWN PARTICLES per key effect ────────────────────────────────
+function spawn(type, cx, cy) {
+  const W=FC.width, H=FC.height;
+  const sp = (t,o) => P.push({t,...o});
+
+  if (type==='space') {
+    for (let i=0;i<32;i++) {
+      const a = -Math.PI/2+(Math.random()-.5)*1.3;
+      const v = Math.random()*9+4;
+      sp('rise',{x:cx,y:cy,vx:Math.cos(a)*v,vy:Math.sin(a)*v,
+        life:1,decay:.018+Math.random()*.015,s:18+Math.random()*12,
+        c:'#FFD700',glyph:'★'});
+    }
+  }
+  else if (type==='backspace') {
+    sp('pacman',{x:W*.85,y:cy,vx:-5.5,vy:0,life:1,decay:.006,s:26,mouth:.1,md:1});
+    for (let i=0;i<9;i++) {
+      sp('dot',{x:W*.12+i*(W*.76/9),y:cy,vx:0,vy:0,life:1,decay:0,eaten:false});
+    }
+  }
+  else if (type==='enter') {
+    sp('arrow',{x:W*.08,y:cy-10,vx:13,vy:2,life:1,decay:.014,s:34,c:'#FFD700'});
+    for (let i=0;i<22;i++) {
+      sp('spark',{x:cx+(Math.random()-.5)*50,y:cy,
+        vx:Math.random()*4-2,vy:-Math.random()*4-1,
+        life:1,decay:.03,s:4,c:'#FFD700'});
+    }
+  }
+  else if (type==='esc') {
+    for (let i=0;i<40;i++) {
+      const a=(i/40)*Math.PI*2;
+      sp('spark',{x:cx,y:cy,
+        vx:Math.cos(a)*7*(Math.random()+.5),vy:Math.sin(a)*7*(Math.random()+.5),
+        life:1,decay:.022+Math.random()*.01,s:5,
+        c:`hsl(${270+Math.random()*70},80%,70%)`});
+    }
+  }
+  else if (type==='shift') {
+    for (let i=0;i<28;i++) {
+      const a=Math.random()*Math.PI*2;
+      sp('spark',{x:cx+(Math.random()-.5)*20,y:cy,
+        vx:Math.cos(a)*6,vy:Math.sin(a)*6-2,
+        life:1,decay:.02,s:5,
+        c:`hsl(${180+Math.random()*60},100%,70%)`});
+    }
+  }
+  else if (type==='ctrlc') {
+    for (let i=0;i<3;i++) {
+      sp('ring',{x:cx,y:cy,r:0,maxR:80+i*45,life:1,decay:.018+i*.008,c:'#00BFFF',lw:3});
+    }
+    for (let i=0;i<20;i++) {
+      const a=Math.random()*Math.PI*2;
+      sp('spark',{x:cx,y:cy,vx:Math.cos(a)*5,vy:Math.sin(a)*5,life:1,decay:.025,s:4,c:'#00BFFF'});
+    }
+  }
+  else if (type==='ctrlv') {
+    for (let i=0;i<38;i++) {
+      const a=Math.random()*Math.PI*2, v=Math.random()*6+3;
+      sp('spark',{x:cx,y:cy,vx:Math.cos(a)*v,vy:Math.sin(a)*v-2,
+        life:1,decay:.02,s:5,c:`hsl(${100+Math.random()*60},100%,60%)`});
+    }
+    sp('popup',{x:cx,y:cy-20,vx:0,vy:-.8,life:1,decay:.015,s:0,c:'#00FF9F',txt:'붙여넣기!'});
+  }
+  else if (type==='ctrlz') {
+    sp('clock',{x:cx,y:cy,life:1,decay:.01,s:58,angle:0,spd:-.14});
+    for (let i=0;i<22;i++) {
+      const a=Math.random()*Math.PI*2;
+      sp('spark',{x:cx+Math.cos(a)*20,y:cy+Math.sin(a)*20,
+        vx:-Math.cos(a)*3,vy:-Math.sin(a)*3,
+        life:1,decay:.028,s:4,c:`hsl(${40+Math.random()*40},100%,70%)`});
+    }
+  }
+  else if (type==='hanen') {
+    const kr=['가','나','다','라','마','바'], en=['A','B','C','D','E','F'];
+    for (let i=0;i<6;i++) {
+      sp('letter',{
+        x:W*.12+i*(W*.76/6), y:cy+(Math.random()-.5)*30,
+        vx:(Math.random()-.5)*1.5, vy:-1.2-Math.random(),
+        life:1, decay:.014, s:32+Math.random()*10,
+        krCh:kr[i], enCh:en[i]
+      });
+    }
+  }
+  else if (type==='caps') {
+    for (let i=0;i<3;i++) {
+      sp('ring',{x:cx,y:cy,r:0,maxR:100+i*60,life:1,decay:.014+i*.005,c:'#FFD700',lw:4-i});
+    }
+    for (let i=0;i<55;i++) {
+      const a=Math.random()*Math.PI*2, v=Math.random()*9+4;
+      sp('spark',{x:cx,y:cy,vx:Math.cos(a)*v,vy:Math.sin(a)*v,
+        life:1,decay:.02,s:5,c:`hsl(${40+Math.random()*30},100%,${60+Math.random()*30}%)`});
+    }
+  }
+}
+
+// ── KEY DEFINITIONS ────────────────────────────────────────────────
+const DEFS = {
+  Space:   { main:'폴짝!\n한 칸 띄어요! ⭐', sub:'Spacebar = 한 칸 뛰기',       anim:'j', vk:'vk-space',  fx:'space',    isCtrl:false },
+  Back:    { main:'냠냠!\n지워버렸어요! 😋',  sub:'Backspace = 왼쪽 글자 삭제',  anim:'w', vk:'vk-back',   fx:'backspace', isCtrl:false },
+  Enter:   { main:'출발!\n다음 줄로 GO! ➡',  sub:'Enter = 줄 바꾸기 / 실행',    anim:'w', vk:'vk-enter',  fx:'enter',    isCtrl:false },
+  Esc:     { main:'취소!\n처음으로! 🌀',      sub:'ESC = 마법 취소 / 되돌아가기', anim:'s', vk:'vk-esc',    fx:'esc',      isCtrl:false },
+  Shift:   { main:'쌍둥이!\n파워 업! 👥',     sub:'Shift = 대문자 / 특수문자',   anim:'c', vk:'vk-shift',  fx:'shift',    isCtrl:false },
+  Caps:    { main:'커져라!\n파워 업! 💪',     sub:'Caps Lock = 계속 대문자 모드', anim:'p', vk:'vk-caps',   fx:'caps',     isCtrl:false },
+  CtrlC:   { main:'베꼈어요!\n복사 마법! 🔵', sub:'Ctrl + C = 복사하기',         anim:'c', vk:'vk-ctrl',   fx:'ctrlc',    isCtrl:true  },
+  CtrlV:   { main:'나타나라!\n붙여넣기! 💚',  sub:'Ctrl + V = 붙여넣기',         anim:'w', vk:'vk-ctrl',   fx:'ctrlv',    isCtrl:true  },
+  CtrlZ:   { main:'돌아가라!\n시간 역행! ⏰', sub:'Ctrl + Z = 되돌리기',         anim:'r', vk:'vk-ctrl',   fx:'ctrlz',    isCtrl:true  },
+  HanEng:  { main:'변신!\n한국어↔영어! 🌍',  sub:'한/영 = 언어 바꾸기',         anim:'r', vk:'vk-hanen',  fx:'hanen',    isCtrl:false },
+};
+
+// ── UI HELPERS ────────────────────────────────────────────────────
+const bubble    = document.getElementById('bubble');
+const bMain     = document.getElementById('bubble-main');
+const bSub      = document.getElementById('bubble-sub');
+const wiz       = document.getElementById('wizard');
+const hint      = document.getElementById('key-hint');
+let bT=null, aT=null, hT=null;
+
+function fire(def) {
+  // Size bubble with pretext
+  const { width } = measureText(def.main, 28);
+  bubble.style.minWidth = width + 'px';
+
+  bMain.textContent = def.main;
+  bSub.textContent  = def.sub;
+  bubble.classList.add('on');
+  clearTimeout(bT);
+  bT = setTimeout(() => bubble.classList.remove('on'), 2600);
+
+  // Wizard anim
+  wiz.className = '';
+  void wiz.offsetWidth;
+  wiz.className = def.anim;
+  clearTimeout(aT);
+  aT = setTimeout(() => wiz.className = '', 850);
+
+  // Highlight virtual key
+  document.querySelectorAll('.k').forEach(k => k.classList.remove('lit','lit2'));
+  const vk = document.getElementById(def.vk);
+  if (vk) vk.classList.add(def.isCtrl ? 'lit2' : 'lit');
+  setTimeout(() => document.querySelectorAll('.k').forEach(k => k.classList.remove('lit','lit2')), 650);
+
+  // Particles
+  const r = wiz.getBoundingClientRect();
+  spawn(def.fx, r.left + r.width/2, r.top + r.height/2);
+
+  // Hint
+  hint.textContent = '✨ ' + def.sub + ' ✨';
+  hint.style.color = '#00FF9F';
+  hint.style.textShadow = '0 0 10px #00FF9F';
+  clearTimeout(hT);
+  hT = setTimeout(() => {
+    hint.style.color = '';
+    hint.style.textShadow = '';
+    hint.textContent = '← 키보드의 어떤 키든 눌러봐! →';
+  }, 2600);
+}
+
+// ── KEYBOARD EVENTS ───────────────────────────────────────────────
+let ctrl = false;
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Control') { ctrl = true; return; }
+
+  if (ctrl) {
+    const k = e.key.toLowerCase();
+    if (k==='c') { e.preventDefault(); fire(DEFS.CtrlC); }
+    else if (k==='v') { e.preventDefault(); fire(DEFS.CtrlV); }
+    else if (k==='z') { e.preventDefault(); fire(DEFS.CtrlZ); }
+    return;
+  }
+
+  e.preventDefault();
+
+  switch(e.key) {
+    case ' ':         fire(DEFS.Space);   break;
+    case 'Backspace': fire(DEFS.Back);    break;
+    case 'Enter':     fire(DEFS.Enter);   break;
+    case 'Escape':    fire(DEFS.Esc);     break;
+    case 'Shift':     fire(DEFS.Shift);   break;
+    case 'CapsLock':  fire(DEFS.Caps);    break;
+    case 'HangulMode':
+    case 'Lang1':     fire(DEFS.HanEng);  break;
+    // 한/영 on some systems fires as Process on AltRight
+    case 'Process':
+      if (e.code === 'Lang1' || e.code === 'AltRight') fire(DEFS.HanEng);
+      break;
+  }
+});
+
+document.addEventListener('keyup', e => {
+  if (e.key === 'Control') ctrl = false;
+});
+
+// Virtual keyboard click support (for touch / mouse testing)
+document.querySelectorAll('.k').forEach(el => {
+  el.addEventListener('click', () => {
+    const map = {
+      'vk-space':'Space','vk-back':'Back','vk-enter':'Enter',
+      'vk-esc':'Esc','vk-shift':'Shift','vk-caps':'Caps',
+      'vk-ctrl':'CtrlC','vk-hanen':'HanEng'
+    };
+    const key = map[el.id];
+    if (key) fire(DEFS[key]);
+  });
+});
+
+// Initial bubble
+setTimeout(() => bubble.classList.add('on'), 600);
+</script>
+</body>
+</html>

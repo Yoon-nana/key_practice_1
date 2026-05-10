@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⌨️ 키보드 마법학교 v3</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#050015;font-family:'Noto Sans KR',sans-serif}
+#stars-canvas,#fx-canvas{position:fixed;inset:0;z-index:0}
+#fx-canvas{z-index:20;pointer-events:none}
+#app{position:relative;z-index:10;width:100vw;height:100vh;display:flex;flex-direction:column;padding:8px 10px 6px;gap:6px}
+#title-bar{text-align:center;font-size:clamp(1.1rem,2.5vw,1.7rem);font-weight:900;color:#FFD700;letter-spacing:3px;text-shadow:0 0 20px #FFD700,0 0 40px orange;animation:titlePulse 3s ease-in-out infinite;flex-shrink:0}
+@keyframes titlePulse{0%,100%{text-shadow:0 0 20px #FFD700,0 0 40px orange}50%{text-shadow:0 0 30px #FFD700,0 0 60px orange,0 0 80px yellow}}
+#main{flex:1;display:flex;gap:8px;min-height:0}
+#doc-panel{flex:1;min-width:0;background:linear-gradient(135deg,rgba(20,10,60,.92),rgba(10,5,40,.92));border:2px solid #334488;border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+#doc-header{display:flex;align-items:center;gap:10px;padding:5px 12px;background:rgba(255,215,0,.06);border-bottom:1px solid #334488;flex-shrink:0}
+#caps-wrap{display:flex;align-items:center;gap:5px;font-size:.75rem;font-weight:700;color:#6677AA}
+#caps-dot{width:8px;height:8px;border-radius:50%;background:#333;border:1px solid #555;transition:all .25s}
+#caps-dot.on{background:#00FF9F;box-shadow:0 0 8px #00FF9F;border-color:#00FF9F}
+#caps-wrap.on{color:#00FF9F}
+#lang-badge{margin-left:auto;font-size:.75rem;font-weight:700;color:#8899CC;background:rgba(255,255,255,.05);padding:2px 8px;border-radius:10px;border:1px solid #334488}
+#doc-content{flex:1;padding:12px 16px;display:flex;flex-direction:column;gap:8px;overflow:hidden}
+#target-area{flex-shrink:0;padding:8px 12px;background:rgba(255,255,255,.03);border-radius:8px;border:1px solid rgba(100,150,255,.2)}
+#target-label{font-size:.65rem;color:rgba(120,150,255,.5);margin-bottom:4px;letter-spacing:1px}
+#target-text{font-size:clamp(1.2rem,2.5vw,1.8rem);font-weight:900;letter-spacing:2px;line-height:1.6;word-break:keep-all}
+.tch{display:inline-block;transition:color .15s}
+.tch.done{color:#00FF9F;text-shadow:0 0 8px rgba(0,255,160,.4)}
+.tch.cur{color:#FFD700;text-shadow:0 0 10px rgba(255,215,0,.6);animation:charPulse .8s ease-in-out infinite}
+.tch.wait{color:rgba(150,170,220,.35)}
+@keyframes charPulse{0%,100%{text-shadow:0 0 8px rgba(255,215,0,.4)}50%{text-shadow:0 0 18px rgba(255,215,0,.9)}}
+#instruction{font-size:.85rem;color:#8899BB;font-weight:700;text-align:center;padding:2px 0;flex-shrink:0}
+#doc-text{font-size:clamp(1.1rem,2.2vw,1.5rem);font-weight:700;color:#D8E8FF;line-height:1.8;min-height:50px;word-break:keep-all;flex-shrink:0}
+.doc-line{display:block;min-height:1.8em}
+.doc-cursor{display:inline-block;width:2px;height:1.1em;background:#FFD700;vertical-align:text-bottom;margin-left:1px;animation:blink .75s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.composing-char{background:rgba(255,215,0,.18);border-bottom:2px solid #FFD700;color:#FFE066}
+#mission-panel{width:188px;flex-shrink:0;background:linear-gradient(135deg,rgba(20,10,60,.92),rgba(10,5,40,.92));border:2px solid #334488;border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+#mission-title{padding:7px 12px;font-size:.8rem;font-weight:900;color:#FFD700;text-align:center;border-bottom:1px solid #334488;background:rgba(255,215,0,.05);flex-shrink:0;letter-spacing:2px}
+#mission-list{flex:1;overflow-y:auto;padding:6px;scrollbar-width:thin;scrollbar-color:#334488 transparent}
+.mi{display:flex;align-items:flex-start;gap:5px;padding:5px 6px;border-radius:6px;margin-bottom:3px;font-size:.72rem;font-weight:700;color:#556688;transition:all .3s}
+.mi.active{color:#FFD700;background:rgba(255,215,0,.07);border:1px solid rgba(255,215,0,.25)}
+.mi.done{color:#00CC77}
+.mi-icon{font-size:.8rem;flex-shrink:0;margin-top:1px}
+.mi-sub{font-size:.63rem;color:#445566;margin-top:2px}
+.mi.active .mi-sub{color:#BB9900}
+.mi.done .mi-sub{color:#008844}
+#kbd-panel{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 6px;background:rgba(0,0,0,.28);border-radius:8px;border:1px solid #1e2d52}
+.kb-row{display:flex;gap:3px;justify-content:center}
+.k{height:34px;min-width:33px;background:linear-gradient(180deg,#161838,#0c0c24);border:1.5px solid #2d3d66;border-bottom:3px solid #1c2a4a;border-radius:5px;color:#6677AA;font-family:'Noto Sans KR',sans-serif;font-size:.6rem;font-weight:700;padding:0 5px;display:flex;flex-direction:column;align-items:center;justify-content:center;user-select:none;transition:all .1s;position:relative;line-height:1.1;white-space:nowrap}
+.k .kr{font-size:.68rem;color:#99AACC;line-height:1}
+.k .en{font-size:.56rem;color:#445577;line-height:1}
+.k.sp .en{font-size:.68rem;color:#AAB8DD;font-weight:700;line-height:1}
+.k.sp .kr{font-size:.52rem;color:rgba(120,150,200,.45);font-weight:400;line-height:1}
+.k .sl{position:absolute;top:2px;right:3px;font-size:.48rem;color:#FF9944;display:none}
+.k[data-w="w2"]{min-width:52px}.k[data-w="w3"]{min-width:72px}.k[data-w="w4"]{min-width:90px}.k[data-w="sp"]{min-width:190px}
+.k.lit{background:linear-gradient(180deg,#FFD700,#FF8C00)!important;border-color:#FFD700!important;border-bottom-color:#BB6600!important;color:#111!important;transform:translateY(2px)!important;box-shadow:0 0 14px #FFD700,0 0 28px rgba(255,140,0,.4)!important}
+.k.lit .kr,.k.lit .en{color:#222!important}
+.k.lit2{background:linear-gradient(180deg,#00FF9F,#00BB70)!important;border-color:#00FF9F!important;color:#111!important;transform:translateY(2px)!important;box-shadow:0 0 14px #00FF9F!important}
+.k.hint{animation:keyHint .9s ease-in-out infinite;border-color:#FFD700!important}
+@keyframes keyHint{0%,100%{box-shadow:0 0 4px rgba(255,215,0,.2)}50%{box-shadow:0 0 16px rgba(255,215,0,.8),0 0 28px rgba(255,215,0,.3)}}
+body.shift-on .k .sl{display:block}
+body.shift-on .k .en{opacity:.4}
+#bubble{position:fixed;top:50%;left:50%;transform:translate(-50%,-170px);background:linear-gradient(135deg,#1a0060,#0d004a);border:2px solid #FFD700;border-radius:14px;padding:9px 18px;text-align:center;box-shadow:0 0 22px rgba(255,215,0,.35);pointer-events:none;z-index:50;opacity:0;transition:opacity .2s;max-width:340px;min-width:180px}
+#bubble.on{opacity:1}
+#bubble-main{font-size:clamp(1.1rem,2.5vw,1.5rem);font-weight:900;color:#FFD700;white-space:pre-wrap;line-height:1.35}
+#bubble-sub{font-size:.8rem;color:#00BFFF;margin-top:4px;font-weight:700}
+@keyframes appShake{0%,100%{transform:none}15%{transform:translateX(-10px)}30%{transform:translateX(10px)}45%{transform:translateX(-7px)}60%{transform:translateX(7px)}80%{transform:translateX(-3px)}}
+#app.shake{animation:appShake .4s ease}
+#finish{position:fixed;inset:0;z-index:100;background:rgba(5,0,21,.96);display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+#finish.on{display:flex}
+#finish h1{font-size:clamp(2rem,5vw,3.5rem);font-weight:900;color:#FFD700;text-shadow:0 0 30px #FFD700,0 0 60px orange;animation:titlePulse 2s ease-in-out infinite}
+#finish p{font-size:1.1rem;color:#00BFFF;font-weight:700}
+</style>
+</head>
+<body>
+<canvas id="stars-canvas"></canvas>
+<canvas id="fx-canvas"></canvas>
+<div id="app">
+  <div id="title-bar">⌨️ 키보드 마법학교 ✨</div>
+  <div id="main">
+    <div id="doc-panel">
+      <div id="doc-header">
+        <div id="caps-wrap"><div id="caps-dot"></div><span>CAPS</span></div>
+        <div id="lang-badge">한국어</div>
+      </div>
+      <div id="doc-content">
+        <div id="target-area">
+          <div id="target-label">▶ 따라 쓸 내용</div>
+          <div id="target-text"></div>
+        </div>
+        <div id="instruction"></div>
+        <div id="doc-text"></div>
+      </div>
+    </div>
+    <div id="mission-panel">
+      <div id="mission-title">🎯 미션 목록</div>
+      <div id="mission-list"></div>
+    </div>
+  </div>
+  <div id="kbd-panel"></div>
+</div>
+<div id="bubble"><div id="bubble-main"></div><div id="bubble-sub"></div></div>
+<div id="finish"><h1>🎉 미션 완료!</h1><p>키보드 마법사가 됐어요! 정말 대단해요!</p></div>
+<textarea id="ta" lang="ko" style="position:fixed;opacity:0;pointer-events:none;top:0;left:0;width:1px;height:1px;font-size:16px;"></textarea>
+<script>
+// ── STARS ─────────────────────────────────────────────────────────────────
+const SC=document.getElementById('stars-canvas'),sc=SC.getContext('2d');
+const STARS=Array.from({length:180},()=>({rx:Math.random(),ry:Math.random(),r:Math.random()*1.3+.3,ph:Math.random()*Math.PI*2,sp:Math.random()*.025+.005}));
+const FC=document.getElementById('fx-canvas'),fc=FC.getContext('2d');
+const P=[];
+const spawnP=(type,o)=>P.push({t:type,...o});
+function resize(){SC.width=FC.width=window.innerWidth;SC.height=FC.height=window.innerHeight;}
+resize();window.addEventListener('resize',resize);
+function drawP(p){
+  switch(p.t){
+    case 'spark':p.x+=p.vx;p.y+=p.vy;p.vy+=.15;fc.beginPath();fc.arc(p.x,p.y,Math.max(.5,p.s*p.life),0,Math.PI*2);fc.fillStyle=p.c;fc.fill();break;
+    case 'rise':p.x+=p.vx;p.y+=p.vy;p.vy-=.04;fc.font=`${Math.round(p.s*p.life+4)}px serif`;fc.fillStyle=p.c;fc.fillText(p.g,p.x,p.y);break;
+    case 'ring':p.r=(1-p.life)*p.maxR;fc.beginPath();fc.arc(p.x,p.y,Math.max(1,p.r),0,Math.PI*2);fc.strokeStyle=p.c;fc.lineWidth=p.lw*p.life;fc.stroke();break;
+    case 'popup':p.y+=p.vy;fc.font=`900 ${Math.round(20+18*(1-p.life))}px "Noto Sans KR"`;fc.textAlign='center';fc.fillStyle=p.c;fc.fillText(p.txt,p.x,p.y);fc.textAlign='left';break;
+  }
+}
+let tt=0;
+function loop(){
+  tt+=.016;
+  sc.clearRect(0,0,SC.width,SC.height);
+  for(const s of STARS){const a=.2+.8*(.5+.5*Math.sin(s.ph+tt*s.sp*60));sc.beginPath();sc.arc(s.rx*SC.width,s.ry*SC.height,s.r,0,Math.PI*2);sc.fillStyle=`rgba(255,255,255,${a})`;sc.fill();}
+  fc.clearRect(0,0,FC.width,FC.height);
+  for(let i=P.length-1;i>=0;i--){const p=P[i];p.life-=p.decay;if(p.life<=0){P.splice(i,1);continue;}fc.globalAlpha=p.life;drawP(p);}
+  fc.globalAlpha=1;requestAnimationFrame(loop);
+}
+loop();
+const CX=()=>FC.width/2,CY=()=>FC.height*.38;
+
+// ── PARTICLES ─────────────────────────────────────────────────────────────
+function fxSpark(col,n=20){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,v=Math.random()*8+3;spawnP('spark',{x:CX(),y:CY(),vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:1,decay:.025,s:5,c:col});}}
+function fxRings(col){for(let i=0;i<3;i++)spawnP('ring',{x:CX(),y:CY(),r:0,maxR:80+i*45,life:1,decay:.015+i*.005,c:col,lw:3-i*.5});}
+function fxStar(){for(let i=0;i<10;i++){const a=-Math.PI/2+(Math.random()-.5)*1.4,v=Math.random()*5+2;spawnP('rise',{x:CX()+(Math.random()-.5)*30,y:CY(),vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:1,decay:.03,s:14,c:'#FFD700',g:'★'});}}
+function fxBig(){for(let i=0;i<60;i++){const a=Math.random()*Math.PI*2,v=Math.random()*10+5;spawnP('spark',{x:CX(),y:FC.height*.5,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:1,decay:.016,s:5,c:`hsl(${Math.random()*360},100%,70%)`});}spawnP('popup',{x:CX(),y:FC.height*.5-20,vy:-1.2,life:1,decay:.011,c:'#FFD700',txt:'🎉 완성!'});}
+function fxSnow(){
+  for(let i=0;i<18;i++){const x=CX()+(Math.random()-.5)*220;spawnP('rise',{x,y:CY(),vx:(Math.random()-.5)*1.2,vy:-(Math.random()*2.5+1),life:1,decay:.013,s:16,c:'#CCEEFF',g:'❄'});}
+  fxRings('#AADDFF');
+}
+function fxRain(){
+  for(let i=0;i<28;i++){const x=CX()+(Math.random()-.5)*300;spawnP('spark',{x,y:CY()-20,vx:(Math.random()-.5)*.8,vy:Math.random()*7+4,life:1,decay:.022,s:3,c:'#4499FF'});}
+  fxSpark('#88BBFF',10);
+}
+function fxCtrlC(){fxRings('#00BFFF');fxSpark('#00BFFF',12);}
+function fxCtrlV(){fxSpark('#00FF9F',24);spawnP('popup',{x:CX(),y:CY()-20,vy:-.8,life:1,decay:.013,c:'#00FF9F',txt:'붙여넣기!'});}
+
+// ── HANGUL DECOMPOSE ──────────────────────────────────────────────────────
+const CHO_L=['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const JNG_L=['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ'];
+const JNG_K=['k','o','i','o','j','p','u','p','h','h','h','h','y','n','n','n','n','b','m','m','l'];
+const JCO_L=['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const JCO_K=['','r','r','r','s','s','g','e','f','f','f','f','f','f','f','f','a','q','q','t','t','d','w','c','z','x','v','g'];
+function decomposeStr(str){
+  const res=[];
+  for(const ch of str){
+    const code=ch.charCodeAt(0);
+    if(code>=0xAC00&&code<=0xD7A3){
+      const idx=code-0xAC00;
+      const cho=Math.floor(idx/(21*28));
+      const jung=Math.floor((idx%(21*28))/28);
+      const jong=idx%28;
+      res.push({jamo:CHO_L[cho],key:['r','r','s','e','e','f','a','q','q','t','t','d','w','w','c','z','x','v','g'][cho]});
+      res.push({jamo:JNG_L[jung],key:JNG_K[jung]});
+      if(jong>0)res.push({jamo:JCO_L[jong],key:JCO_K[jong]});
+    } else {
+      res.push({jamo:ch,key:null});
+    }
+  }
+  return res;
+}
+
+// shift 기호 → 기본 키 ID 매핑
+const SHIFT_MAP={'^':'6','_':'minus','>':'period','<':'comma','!':'1','@':'2','#':'3','$':'4','%':'5','&':'7','*':'8','(':'9',')':'0','+':'equal','~':'grave',':':'semi','"':'apos','?':'slash'};
+
+// ── KEYBOARD LAYOUT ───────────────────────────────────────────────────────
+const KBD=[
+  [{id:'esc',kr:'이에스씨',en:'ESC',w:'w2',sp:true},
+   {id:'grave',en:'`',sl:'~'},{id:'1',en:'1',sl:'!'},{id:'2',en:'2',sl:'@'},{id:'3',en:'3',sl:'#'},
+   {id:'4',en:'4',sl:'$'},{id:'5',en:'5',sl:'%'},{id:'6',en:'6',sl:'^'},
+   {id:'7',en:'7',sl:'&'},{id:'8',en:'8',sl:'*'},{id:'9',en:'9',sl:'('},
+   {id:'0',en:'0',sl:')'},{id:'minus',en:'-',sl:'_'},{id:'equal',en:'=',sl:'+'},
+   {id:'back',kr:'백스페이스',en:'Backspace',w:'w3',sp:true}],
+  [{id:'tab',kr:'탭',en:'Tab',w:'w2',sp:true},
+   {id:'q',en:'Q',kr:'ㅂ',sl:'ㅃ'},{id:'w',en:'W',kr:'ㅈ',sl:'ㅉ'},{id:'e',en:'E',kr:'ㄷ',sl:'ㄸ'},
+   {id:'r',en:'R',kr:'ㄱ',sl:'ㄲ'},{id:'t',en:'T',kr:'ㅅ',sl:'ㅆ'},{id:'y',en:'Y',kr:'ㅛ'},
+   {id:'u',en:'U',kr:'ㅕ'},{id:'i',en:'I',kr:'ㅑ'},{id:'o',en:'O',kr:'ㅐ',sl:'ㅒ'},
+   {id:'p',en:'P',kr:'ㅔ',sl:'ㅖ'},{id:'lbr',en:'['},{id:'rbr',en:']'},{id:'bsl',en:'\\'}],
+  [{id:'caps',kr:'캡스락',en:'Caps Lock',w:'w3',sp:true},
+   {id:'a',en:'A',kr:'ㅁ'},{id:'s',en:'S',kr:'ㄴ'},{id:'d',en:'D',kr:'ㅇ'},
+   {id:'f',en:'F',kr:'ㄹ'},{id:'g',en:'G',kr:'ㅎ'},{id:'h',en:'H',kr:'ㅗ'},
+   {id:'j',en:'J',kr:'ㅓ'},{id:'k',en:'K',kr:'ㅏ'},{id:'l',en:'L',kr:'ㅣ'},
+   {id:'semi',en:';',sl:':'},{id:'apos',en:"'",sl:'"'},
+   {id:'enter',kr:'엔터',en:'Enter ↵',w:'w4',sp:true}],
+  [{id:'lshift',kr:'쉬프트',en:'Shift ⬆',w:'w4',sp:true},
+   {id:'z',en:'Z',kr:'ㅋ'},{id:'x',en:'X',kr:'ㅌ'},{id:'c',en:'C',kr:'ㅊ'},
+   {id:'v',en:'V',kr:'ㅍ'},{id:'b',en:'B',kr:'ㅠ'},{id:'n',en:'N',kr:'ㅜ'},
+   {id:'m',en:'M',kr:'ㅡ'},{id:'comma',en:','},{id:'period',en:'.'},{id:'slash',en:'/'},
+   {id:'rshift',kr:'쉬프트',en:'Shift ⬆',w:'w4',sp:true}],
+  [{id:'lctrl',kr:'컨트롤',en:'Ctrl',w:'w2',sp:true},{id:'lalt',kr:'알트',en:'Alt',w:'w2',sp:true},
+   {id:'space',kr:'스페이스',en:'Space',w:'sp',sp:true},
+   {id:'hanen',en:'한 / 영',w:'w3',sp:true},
+   {id:'rctrl',kr:'컨트롤',en:'Ctrl',w:'w2',sp:true}],
+];
+function buildKbd(){
+  const panel=document.getElementById('kbd-panel');
+  KBD.forEach(row=>{
+    const rowEl=document.createElement('div');rowEl.className='kb-row';
+    row.forEach(key=>{
+      const k=document.createElement('div');k.className='k';k.id='vk-'+key.id;
+      if(key.w)k.dataset.w=key.w;
+      if(key.sp)k.classList.add('sp');
+      let inner='';
+      if(key.kr){
+        if(key.sp)inner=`<span class="en">${key.en}</span><span class="kr">${key.kr}</span>`;
+        else inner=`<span class="kr">${key.kr}</span><span class="en">${key.en}</span>`;
+        if(key.sl)inner+=`<span class="sl">${key.sl}</span>`;
+      } else{inner=`<span class="en">${key.en}</span>`;if(key.sl)inner+=`<span class="sl">${key.sl}</span>`;}
+      k.innerHTML=inner;rowEl.appendChild(k);
+    });
+    panel.appendChild(rowEl);
+  });
+}
+
+// ── KEY LIGHT ─────────────────────────────────────────────────────────────
+function litKey(id,cls='lit',dur=400){const k=document.getElementById('vk-'+id);if(!k)return;k.classList.remove('lit','lit2','hint');k.classList.add(cls);setTimeout(()=>k.classList.remove(cls),dur);}
+function hintKeys(ids){document.querySelectorAll('.k.hint').forEach(k=>k.classList.remove('hint'));for(const id of ids){const k=document.getElementById('vk-'+id);if(k)k.classList.add('hint');}}
+function clearHints(){document.querySelectorAll('.k.hint').forEach(k=>k.classList.remove('hint'));}
+
+// ── BUBBLE ────────────────────────────────────────────────────────────────
+const bubEl=document.getElementById('bubble'),bubMain=document.getElementById('bubble-main'),bubSub=document.getElementById('bubble-sub');
+let bubT=null;
+function showBubble(main,sub='',dur=2200){bubMain.textContent=main;bubSub.textContent=sub;bubEl.classList.add('on');clearTimeout(bubT);bubT=setTimeout(()=>bubEl.classList.remove('on'),dur);}
+function shake(){const app=document.getElementById('app');app.classList.remove('shake');void app.offsetWidth;app.classList.add('shake');setTimeout(()=>app.classList.remove('shake'),450);}
+
+// ── GAME STATE ────────────────────────────────────────────────────────────
+// phases: 0=눈, 1=지우기, 2=비바람, 3=숫자, 4=수식, 5=한영전환, 6=abcde, 7=ABCDE, 8=이모티콘, 9=Ctrl+C/V
+const PHASE_DATA=[
+  {label:'1. 눈',            sub:'한글 받침 연습',     target:'눈'},
+  {label:'2. 지우기',        sub:'백스페이스 연습',    target:null},
+  {label:'3. 비 바람',       sub:'스페이스 포함',      target:'비 바람'},
+  {label:'4. 숫자',          sub:'1 2 3 4 5',          target:'1 2 3 4 5'},
+  {label:'5. 수식',          sub:'3+2=5',              target:'3+2=5'},
+  {label:'6. 한/영 전환',    sub:'한/영 키 누르기',    target:null},
+  {label:'7. 소문자',        sub:'abcde',              target:'abcde'},
+  {label:'8. 대문자',        sub:'Caps Lock → ABCDE',  target:'ABCDE'},
+  {label:'9. 이모티콘',      sub:'(=^.^=)',            target:'(=^.^=)'},
+  {label:'10. 복사-붙여넣기',sub:'Ctrl+C → Ctrl+V',   target:null},
+];
+
+const gs={phase:0,step:0,typed:'',composing:'',capsOn:false,langKo:true,waitCaps:false};
+const PRAISES=['잘 했어요! 👏','완벽해요! ⭐','최고예요! 🌟','맞아요! 💫','훌륭해요! 🎉','대단해요! 🔥'];
+function praise(){return PRAISES[Math.floor(Math.random()*PRAISES.length)];}
+
+// ── RENDER ────────────────────────────────────────────────────────────────
+function eh(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/ /g,'&nbsp;');}
+function renderDoc(){
+  if(gs.phase===5||gs.phase===9)return; // 이 단계는 doc-text 직접 관리
+  const comp=gs.composing?`<span class="composing-char">${eh(gs.composing)}</span>`:'';
+  document.getElementById('doc-text').innerHTML=`<span class="doc-line">${eh(gs.typed)}${comp}<span class="doc-cursor"></span></span>`;
+}
+function renderTarget(target,done){
+  if(!target){document.getElementById('target-text').textContent='';return;}
+  let html='';
+  [...target].forEach((ch,i)=>{
+    const disp=ch===' '?'&nbsp;':eh(ch);
+    html+=`<span class="tch ${i<done?'done':i===done?'cur':'wait'}">${disp}</span>`;
+  });
+  document.getElementById('target-text').innerHTML=html;
+}
+function setInstr(t){document.getElementById('instruction').textContent=t;}
+function setTLabel(t){document.getElementById('target-label').textContent=t;}
+function renderMissions(){
+  const el=document.getElementById('mission-list');el.innerHTML='';
+  PHASE_DATA.forEach((p,i)=>{
+    const done=i<gs.phase,active=i===gs.phase;
+    const d=document.createElement('div');
+    d.className='mi'+(done?' done':active?' active':'');
+    d.innerHTML=`<span class="mi-icon">${done?'✅':active?'🎯':'⬜'}</span><div><div>${p.label}</div><div class="mi-sub">${p.sub}</div></div>`;
+    el.appendChild(d);
+  });
+}
+
+// ── HINT ─────────────────────────────────────────────────────────────────
+function updateHint(){
+  const ph=gs.phase;
+
+  // 특수 단계 고정 힌트
+  if(ph===1){hintKeys(['back']);return;}
+  if(ph===5){hintKeys(['hanen','a']);return;}
+  if(ph===7&&gs.waitCaps){hintKeys(['caps']);return;}
+  if(ph===9){
+    if(gs.step===0)hintKeys(['lctrl','c']);
+    else if(gs.step===1)hintKeys(['lctrl','v']);
+    else clearHints();
+    return;
+  }
+
+  // 완성 후 엔터 힌트
+  if(gs.step===1){hintKeys(['enter']);return;}
+
+  // 타겟 기반 다음 키 힌트
+  const target=PHASE_DATA[ph].target;
+  if(!target){clearHints();return;}
+  const charDone=[...gs.typed].length;
+  if(charDone>=target.length){clearHints();return;}
+  const nextCh=target[charDone];
+
+  // 한글 자모 단위 힌트 (연속 한글을 통째로 합산해서 비교)
+  if(nextCh.charCodeAt(0)>=0xAC00&&nextCh.charCodeAt(0)<=0xD7A3){
+    // 현재 위치부터 연속 한글 자모 전부 수집 (스페이스/비한글에서 중단)
+    const allJamos=[];
+    let korEnd=charDone;
+    for(let ti=charDone;ti<target.length;ti++){
+      const tc=target[ti];
+      if(tc.charCodeAt(0)>=0xAC00&&tc.charCodeAt(0)<=0xD7A3){
+        allJamos.push(...decomposeStr(tc));
+        korEnd=ti+1;
+      } else break;
+    }
+    // composing 자모 수 (IME 임시 받침 포함해서 정확히 카운트)
+    const compIdx=decomposeStr(gs.composing||'').length;
+    if(compIdx<allJamos.length){
+      hintKeys([allJamos[compIdx].key]);
+    } else {
+      // 한글 구간 전체 완성 → 다음 힌트
+      if(korEnd>=target.length){hintKeys(['enter']);}
+      else if(target[korEnd]===' '){hintKeys(['space']);}
+      else clearHints();
+    }
+    return;
+  }
+
+  // 기호/숫자/영문 힌트
+  if(nextCh===' '){hintKeys(['space']);return;}
+  if(nextCh==='+'){hintKeys(['lshift','rshift','equal']);return;}
+  if(nextCh==='='){hintKeys(['equal']);return;}
+  if(nextCh==='^'){hintKeys(['lshift','rshift','6']);return;}
+  if(nextCh==='_'){hintKeys(['lshift','rshift','minus']);return;}
+  if(nextCh==='>'){hintKeys(['lshift','rshift','period']);return;}
+  if(nextCh==='<'){hintKeys(['lshift','rshift','comma']);return;}
+  if(nextCh==='('){hintKeys(['lshift','rshift','9']);return;}
+  if(nextCh===')'){hintKeys(['lshift','rshift','0']);return;}
+  if(nextCh==='.'){hintKeys(['period']);return;}
+  if(/[0-9]/.test(nextCh)){hintKeys([nextCh]);return;}
+
+  const lc=nextCh.toLowerCase();
+  if(nextCh!==lc){
+    if(gs.capsOn)hintKeys([lc]);
+    else hintKeys(['lshift','rshift',lc]);
+    return;
+  }
+  hintKeys([lc]);
+}
+
+// ── PHASE INIT ────────────────────────────────────────────────────────────
+function goNext(preTyped=''){
+  const next=gs.phase+1;
+  if(next>=PHASE_DATA.length){
+    setTimeout(()=>{document.getElementById('finish').classList.add('on');fxBig();},800);
+    return;
+  }
+  setTimeout(()=>initPhase(next,preTyped),700);
+}
+
+function initPhase(ph,preTyped=''){
+  gs.phase=ph;gs.step=0;gs.typed=preTyped;gs.composing='';gs.waitCaps=false;
+  const pd=PHASE_DATA[ph];
+  renderMissions();
+  switch(ph){
+    case 0: // 눈
+      setTLabel('▶ 따라 쓸 내용');renderTarget(pd.target,0);
+      setInstr('눈을 입력해봐요!');
+      if(!gs.langKo)doHanEn();
+      renderDoc();
+      break;
+    case 1: // 백스페이스
+      gs.typed='눈';
+      setTLabel('▶ 지워봐요!');
+      document.getElementById('target-text').innerHTML='<span style="color:#FF9944;font-size:1rem">← 백스페이스로 지워요!</span>';
+      setInstr('지우기 키로 글자를 지워봐요!');
+      renderDoc();
+      showBubble('지워봐요! 🗑️','← Backspace = 지우기',3000);
+      break;
+    case 2: // 비 바람
+      setTLabel('▶ 따라 쓸 내용');renderTarget(pd.target,0);
+      setInstr('비 바람을 써봐요! 스페이스도 있어요.');
+      if(!gs.langKo)doHanEn();
+      renderDoc();
+      break;
+    case 3: // 숫자
+      setTLabel('▶ 따라 쓸 내용');renderTarget(pd.target,0);
+      setInstr('숫자를 차례대로 눌러봐요!');
+      renderDoc();
+      break;
+    case 4: // 수식
+      setTLabel('▶ 따라 쓸 내용');renderTarget(pd.target,0);
+      setInstr('+ 기호는 Shift + = 키예요!');
+      renderDoc();
+      break;
+    case 5: // 한/영 전환
+      setTLabel('▶ 순서대로 눌러요!');
+      document.getElementById('target-text').innerHTML=
+        '<span style="color:#AA66FF;font-size:1.2rem;font-weight:900">① 한/영</span>'
+        +'<span style="color:#667799;font-size:1rem;font-weight:700"> → </span>'
+        +'<span style="color:#FFD700;font-size:1.2rem;font-weight:900">② a</span>';
+      document.getElementById('doc-text').innerHTML='<span style="color:#445566;font-size:.9rem">한/영 키로 영어 모드로 바꾼 다음 a 를 눌러봐요!</span>';
+      setInstr('한/영 키 누르고 → a 키!');
+      if(!gs.langKo){gs.langKo=true;document.getElementById('lang-badge').textContent='한국어';}
+      showBubble('한/영 키를 먼저 눌러요! 🌍','그 다음 a 키!',4000);
+      break;
+    case 6: // abcde
+      setTLabel('▶ 따라 쓸 내용');
+      {const d6=[...gs.typed].length;renderTarget(pd.target,d6);}
+      setInstr('소문자로 abcde를 써봐요!');
+      if(gs.capsOn)doCapsQuiet();
+      if(gs.langKo)doHanEn();
+      renderDoc();
+      break;
+    case 7: // ABCDE
+      setTLabel('▶ 따라 쓸 내용');renderTarget(pd.target,0);
+      if(!gs.capsOn){
+        gs.waitCaps=true;
+        setInstr('먼저 Caps Lock을 눌러요!');
+        showBubble('Caps Lock! 💪','대문자 모드로!',3000);
+      } else {
+        setInstr('ABCDE를 써봐요!');
+      }
+      renderDoc();
+      break;
+    case 8: // 이모티콘
+      setTLabel('▶ 따라 쓸 내용');renderTarget(pd.target,0);
+      setInstr('Shift 키로 기호를 입력해요!');
+      showBubble('Shift + 키로\n(=^.^=) 완성! 🐱','',2500);
+      renderDoc();
+      break;
+    case 9: // Ctrl+C → Ctrl+V
+      setTLabel('📋 복사할 내용');
+      document.getElementById('target-text').innerHTML='<span style="color:#FFD700;font-size:1.6rem;font-weight:900;letter-spacing:4px">비 바람</span>';
+      document.getElementById('doc-text').innerHTML='<span style="color:#334466;font-size:1rem">← 여기에 붙여넣기 될 거예요</span>';
+      setInstr('Ctrl+C로 복사해봐요!');
+      showBubble('Ctrl + C\n복사 마법! 🔵','Ctrl 누른 채로 C!',3500);
+      break;
+  }
+  updateHint();
+}
+
+// ── CAPS / HANEN ──────────────────────────────────────────────────────────
+function doCaps(){
+  gs.capsOn=!gs.capsOn;
+  document.getElementById('caps-dot').classList.toggle('on',gs.capsOn);
+  document.getElementById('caps-wrap').classList.toggle('on',gs.capsOn);
+  litKey('caps');fxSpark('#FFD700',10);fxRings('#FFD700');
+  showBubble(gs.capsOn?'커져라!\n대문자 ON! 💪':'돌아와!\n소문자 ON! 🌙','Caps Lock = 대/소문자');
+}
+function doCapsQuiet(){
+  // 애니메이션 없이 캡스 상태만 끔
+  gs.capsOn=false;
+  document.getElementById('caps-dot').classList.remove('on');
+  document.getElementById('caps-wrap').classList.remove('on');
+}
+let lastHanEnTime=0;
+function doHanEn(){
+  const now=Date.now();
+  if(now-lastHanEnTime<400)return; // 중복 토글 방지
+  lastHanEnTime=now;
+  gs.langKo=!gs.langKo;
+  document.getElementById('lang-badge').textContent=gs.langKo?'한국어':'영어';
+  litKey('hanen');fxSpark('#AA66FF',8);
+  showBubble('변신!\n'+(gs.langKo?'한국어':'영어')+' 모드!','한/영 = 언어 바꾸기');
+  if(gs.phase===5&&!gs.langKo){
+    clearHints();
+    setTimeout(()=>{showBubble('완벽! 영어 모드! 🌍\n다음 미션으로!','',2000);goNext();},400);
+  }
+}
+
+// ── INPUT VALIDATION ──────────────────────────────────────────────────────
+function onChar(ch){
+  const ph=gs.phase;
+  // 입력 막는 단계
+  if(ph===1||ph===5||ph===9)return;
+  if(ph===7&&gs.waitCaps)return;
+
+  const target=PHASE_DATA[ph].target;
+  if(!target)return;
+
+  const charIdx=[...gs.typed].length;
+  if(charIdx>=target.length)return;
+  const expected=target[charIdx];
+
+  let match=false;
+  if(ch===expected)match=true;
+  if(!match&&gs.capsOn&&ch.toUpperCase()===expected)match=true;
+  if(!match&&expected.match(/[a-zA-Z]/)&&ch.toLowerCase()===expected.toLowerCase())match=true;
+
+  if(match){
+    gs.typed+=expected;gs.composing='';renderDoc();
+    fxStar();
+    const cnt=[...gs.typed].length;
+    if(cnt%3===0)showBubble(praise(),'',1200);
+    renderTarget(target,cnt);updateHint();
+    if(cnt>=target.length){
+      fxBig();
+      gs.step=1;hintKeys(['enter']);
+      setInstr('↵ 엔터를 눌러요!');
+      if(ph===0)fxSnow();
+      if(ph===2)fxRain();
+      showBubble('완성! 엔터를 눌러요! ↵','Enter = 다음으로!',3000);
+    }
+    return true;
+  } else {
+    shake();showBubble('다시 해봐요! 💪','',900);
+    gs.composing='';renderDoc();updateHint();
+    return false;
+  }
+}
+
+// ── ENTER / BACKSPACE ─────────────────────────────────────────────────────
+function doEnter(){
+  litKey('enter');fxStar();
+  const ph=gs.phase;
+  if(ph===1||ph===5||ph===9)return;
+  if(ph===7&&gs.waitCaps)return;
+  if(gs.step===1){showBubble('훌륭해요! 다음 미션! 🎉','',1500);goNext();return;}
+  shake();showBubble('아직 더 써봐요! ✏️','',1200);
+}
+
+function doBack(){
+  litKey('back');
+  if(gs.phase===1){
+    if(gs.composing){gs.composing='';renderDoc();return;}
+    if(gs.typed.length>0){
+      gs.typed=gs.typed.slice(0,-1);
+      fxSpark('#FF9944',6);
+      renderDoc();
+      if(gs.typed.length===0){
+        showBubble('잘 지웠어요! 🗑️','',1500);
+        goNext();
+      }
+    }
+    return;
+  }
+  if(gs.composing){gs.composing='';renderDoc();return;}
+  if(gs.typed.length>0){
+    gs.typed=gs.typed.slice(0,-1);renderDoc();
+    const target=PHASE_DATA[gs.phase].target;
+    if(target)renderTarget(target,[...gs.typed].length);
+    updateHint();
+  }
+}
+
+// ── ANIMATE PASTE ─────────────────────────────────────────────────────────
+function animatePaste(text,onDone){
+  const el=document.getElementById('doc-text');
+  el.innerHTML='';
+  const chars=[...text];
+  let i=0;
+  function next(){
+    if(i>=chars.length){if(onDone)onDone();return;}
+    el.innerHTML+=`<span style="color:#00FF9F;font-size:1.6rem;font-weight:900;letter-spacing:3px">${eh(chars[i])}</span>`;
+    fxSpark('#00FF9F',4);
+    i++;setTimeout(next,220);
+  }
+  next();
+}
+
+// ── KEYBOARD EVENT ────────────────────────────────────────────────────────
+const ta=document.getElementById('ta');
+let isComp=false,shiftOn=false,ctrlOn=false,enterDuringComp=false;
+document.addEventListener('mousedown',e=>{if(e.target!==ta){e.preventDefault();ta.focus();}});
+ta.focus();
+
+ta.addEventListener('compositionstart',()=>{isComp=true;gs.composing='';renderDoc();});
+ta.addEventListener('compositionupdate',e=>{
+  if(gs.phase===5||gs.phase===9)return;
+  gs.composing=e.data||'';renderDoc();updateHint();
+  checkComposingMismatch();
+});
+
+function checkComposingMismatch(){
+  const ph=gs.phase;
+  if([1,5,9].includes(ph)||!gs.composing)return;
+  if(ph===7&&gs.waitCaps)return;
+  const target=PHASE_DATA[ph].target;
+  if(!target)return;
+  const charDone=[...gs.typed].length;
+  if(charDone>=target.length)return;
+  if(target[charDone].charCodeAt(0)<0xAC00)return; // 한글이 아니면 패스
+
+  // 현재 위치부터 연속 한글 자모 수집
+  const allJamos=[];
+  for(let ti=charDone;ti<target.length;ti++){
+    const tc=target[ti];
+    if(tc.charCodeAt(0)>=0xAC00&&tc.charCodeAt(0)<=0xD7A3)allJamos.push(...decomposeStr(tc));
+    else break;
+  }
+  const compJamos=decomposeStr(gs.composing);
+  for(let i=0;i<compJamos.length;i++){
+    if(i>=allJamos.length||compJamos[i].jamo!==allJamos[i].jamo){
+      shake();
+      gs.composing='';isComp=false;ta.value='';
+      renderDoc();updateHint();
+      return;
+    }
+  }
+}
+// enterDuringComp 확인 후 다음 단계 진행 (compositionend/input 양쪽에서 호출)
+function checkAdvanceAfterEnter(){
+  if(!enterDuringComp)return;
+  enterDuringComp=false;
+  if(gs.step===1)setTimeout(()=>doEnter(),80);
+}
+ta.addEventListener('compositionend',e=>{
+  isComp=false;
+  const ch=e.data||ta.value.replace(/\n/g,'')||'';
+  gs.composing='';ta.value='';
+  if(ch&&gs.phase!==1&&gs.phase!==5&&gs.phase!==9)for(const c of ch)onChar(c);
+  renderDoc();updateHint();
+  checkAdvanceAfterEnter();
+});
+ta.addEventListener('input',e=>{
+  if(isComp)return;
+  const val=ta.value;if(!val)return;
+  const text=val.replace(/\n/g,'');
+  // phase 5: 영어 글자 입력 감지 → 한/영 전환 확인
+  if(gs.phase===5&&text&&/[a-zA-Z]/.test(text)){
+    const p5ch=([...text].find(c=>/[a-zA-Z]/.test(c))||'').toLowerCase();
+    ta.value='';
+    if(gs.langKo){gs.langKo=false;document.getElementById('lang-badge').textContent='영어';}
+    litKey('hanen');fxSpark('#AA66FF',12);fxRings('#AA66FF');
+    clearHints();
+    showBubble('완벽! 영어 모드! 🌍\n다음 미션으로!','',2000);
+    setTimeout(()=>goNext(p5ch==='a'?'a':''),500);
+    return;
+  }
+  if(text){
+    // 한글 입력 단계에서 영문자 → 한/영 키 안내
+    const korPhase=[0,2,3,4];
+    if(korPhase.includes(gs.phase)&&/[a-zA-Z]/.test(text)){
+      showBubble('한/영 키를 눌러요! 🌐','키보드 아래쪽 한/영 버튼!',3000);
+      ta.value='';return;
+    }
+    for(const ch of text)onChar(ch);
+  }
+  ta.value='';renderDoc();
+  checkAdvanceAfterEnter();
+});
+
+ta.addEventListener('keydown',e=>{
+  if(e.key==='Shift'){shiftOn=true;document.body.classList.add('shift-on');['vk-lshift','vk-rshift'].forEach(id=>{const k=document.getElementById(id);if(k)k.classList.add('lit');});return;}
+  if(e.key==='Control'){ctrlOn=true;return;}
+  if(e.key==='Alt')return;
+
+  // Ctrl 콤보 — 9번 미션만
+  if(ctrlOn){
+    e.preventDefault();
+    const k=e.key.toLowerCase();
+    if(gs.phase===9){
+      if(gs.step===0&&k==='c'){
+        litKey('lctrl','lit2');litKey('c','lit2',500);
+        fxCtrlC();
+        // 소스 텍스트 순간 반짝
+        const src=document.getElementById('target-text');
+        src.style.transition='background .1s';src.style.background='rgba(0,191,255,.25)';
+        setTimeout(()=>src.style.background='',600);
+        showBubble('복사됨! 🔵','Ctrl+C = 복사!');
+        gs.step=1;updateHint();
+        setTimeout(()=>showBubble('Ctrl + V\n붙여넣기! 💚','Ctrl 누른 채로 V!',3000),1600);
+      } else if(gs.step===1&&k==='v'){
+        litKey('lctrl','lit2');litKey('v','lit2',500);
+        fxCtrlV();
+        showBubble('붙여넣기! 💚','Ctrl+V = 붙여넣기!');
+        gs.step=2;updateHint();
+        animatePaste('비 바람',()=>{
+          setTimeout(()=>{showBubble('키보드 마법사! 🎉','모든 미션 완료!',3000);},300);
+          setTimeout(()=>goNext(),2500);
+        });
+      } else if(gs.step<2){
+        shake();showBubble('순서대로 눌러요! 💪','',900);
+      }
+    }
+    return;
+  }
+
+  // 한글 조합 중 Enter 감지 (compositionend 후 자동 진행용)
+  if(e.key==='Enter'&&isComp){enterDuringComp=true;return;}
+
+  // 한/영 키 직접 감지
+  if(e.key==='HangulMode'||e.key==='Lang1'||e.code==='Lang1'||e.code==='HangulMode'||
+     (e.key==='Process'&&(e.code==='Lang1'||e.code==='AltRight'||e.code==='HangulMode'))){
+    e.preventDefault();
+    doHanEn();
+    return;
+  }
+
+  // phase 5 폴백: 한/영 키 이벤트가 안 와도 영어 키가 눌리면 전환으로 간주
+  if(gs.phase===5&&!isComp&&e.key.length===1&&/[a-zA-Z]/.test(e.key)&&!e.ctrlKey&&!e.altKey){
+    e.preventDefault();
+    if(gs.langKo){gs.langKo=false;document.getElementById('lang-badge').textContent='영어';}
+    litKey('hanen');fxSpark('#AA66FF',8);
+    clearHints();
+    showBubble('완벽! 영어 모드! 🌍\n다음 미션으로!','',2000);
+    const p5key=e.key.toLowerCase();
+    setTimeout(()=>goNext(p5key==='a'?'a':''),400);
+    return;
+  }
+
+  if(isComp)return;
+
+  if(e.key===' '){
+    e.preventDefault();
+    if(gs.phase!==1&&gs.phase!==5&&gs.phase!==9){litKey('space');onChar(' ');}
+    return;
+  }
+  if(e.key==='Backspace'){e.preventDefault();doBack();return;}
+  if(e.key==='Enter'){e.preventDefault();doEnter();return;}
+  if(e.key==='Escape'){e.preventDefault();litKey('esc');shake();showBubble('미션을 계속해봐요! 💪','',1000);return;}
+  if(e.key==='Tab'){e.preventDefault();return;}
+
+  if(e.key==='CapsLock'){
+    doCaps();
+    if(gs.phase===7&&gs.waitCaps&&gs.capsOn){
+      gs.waitCaps=false;
+      setInstr('ABCDE를 써봐요!');
+      showBubble('완벽! 이제 ABCDE! ✨','',2000);
+      updateHint();
+    }
+    return;
+  }
+
+  // 영어 모드 문자 입력
+  if(!gs.langKo&&e.key.length===1&&!e.ctrlKey&&!e.altKey){
+    e.preventDefault();
+    const baseId=SHIFT_MAP[e.key]||e.key.toLowerCase();
+    const ok=onChar(e.key);
+    if(ok)litKey(baseId,'lit',250);
+  }
+});
+
+ta.addEventListener('keyup',e=>{
+  if(e.key==='Shift'){
+    shiftOn=false;document.body.classList.remove('shift-on');
+    ['vk-lshift','vk-rshift'].forEach(id=>{const k=document.getElementById(id);if(k)k.classList.remove('lit');});
+    updateHint();
+  }
+  if(e.key==='Control'){ctrlOn=false;}
+});
+
+// ── START ─────────────────────────────────────────────────────────────────
+buildKbd();
+initPhase(0);
+setTimeout(()=>showBubble('눈을 입력해봐요! ❄','한글로 써요!',3000),600);
+</script>
+</body>
+</html>
