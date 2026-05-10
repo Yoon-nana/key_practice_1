@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>키보드 마스터 실전</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#050015;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-serif}
+#stars-canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+#fx-canvas{position:fixed;inset:0;z-index:20;pointer-events:none}
+
+/* ── 전체 레이아웃: 좌측 사이드 + 우측 키보드 ── */
+#app{position:relative;z-index:10;display:flex;flex-direction:row;height:100vh;padding:14px;gap:14px}
+
+/* 좌측 패널 */
+#side{width:210px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+#title{font-size:clamp(1rem,1.6vw,1.4rem);font-weight:900;color:#FFD700;letter-spacing:2px;text-align:center;text-shadow:0 0 16px #FFD700,0 0 32px orange;animation:titlePulse 3s ease-in-out infinite}
+@keyframes titlePulse{0%,100%{text-shadow:0 0 16px #FFD700,0 0 32px orange}50%{text-shadow:0 0 24px #FFD700,0 0 50px orange,0 0 70px yellow}}
+#prog-row{display:flex;flex-direction:column;align-items:center;gap:5px;width:100%}
+#prog-label{color:#aabbff;font-weight:700;font-size:.8rem}
+.prog-track{width:100%;height:10px;background:rgba(255,255,255,.1);border-radius:999px;overflow:hidden;border:1px solid rgba(255,215,0,.3)}
+.prog-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#FFD700,#FF8C00);transition:width .35s cubic-bezier(.4,0,.2,1);box-shadow:0 0 10px #FFD700}
+#prog-count{color:#FFD700;font-weight:900;font-size:.95rem}
+
+#bubble{position:relative;background:linear-gradient(135deg,#1a0060,#0d004a);border:2.5px solid #FFD700;border-radius:16px;padding:12px 16px;text-align:center;box-shadow:0 0 20px rgba(255,215,0,.4),inset 0 0 24px rgba(100,0,255,.2);width:100%}
+#bubble::after{content:'';position:absolute;bottom:-15px;left:50%;transform:translateX(-50%);border:7px solid transparent;border-top-color:#FFD700}
+#bubble-main{font-size:clamp(.85rem,1.1vw,1rem);font-weight:900;color:#FFD700;line-height:1.45;white-space:pre-wrap}
+#bubble-sub{font-size:.75rem;color:#00BFFF;margin-top:5px;font-weight:700}
+
+#wizard{position:relative;width:90px;text-align:center;cursor:default;user-select:none;transform-origin:bottom center;flex-shrink:0}
+.hat-wrap{position:relative;width:58px;margin:0 auto;height:68px}
+.hat-star{position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:1.2rem;z-index:3;animation:hatStarSpin 4s linear infinite}
+@keyframes hatStarSpin{from{transform:translateX(-50%) rotate(0)}to{transform:translateX(-50%) rotate(360deg)}}
+.hat-cone{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);width:50px;height:56px;background:linear-gradient(180deg,#1100AA,#2200CC);clip-path:polygon(50% 0%,0% 100%,100% 100%);filter:drop-shadow(0 0 6px #5522FF)}
+.hat-brim{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:64px;height:15px;background:#3311CC;border-radius:50%;box-shadow:0 2px 8px rgba(100,0,255,.6)}
+.wiz-face{font-size:2.6rem;display:block;line-height:1;margin-top:2px}
+.wiz-body{width:56px;height:46px;margin:0 auto;background:linear-gradient(180deg,#2211AA,#1100DD);border-radius:12px 12px 18px 18px;position:relative;box-shadow:0 0 12px rgba(50,0,255,.5)}
+.wiz-wand{position:absolute;right:-18px;top:6px;width:5px;height:40px;background:linear-gradient(180deg,#C8A060,#8B5A2B);border-radius:3px;transform:rotate(25deg);transform-origin:top}
+.wiz-wand::before{content:'✨';position:absolute;top:-18px;left:-8px;font-size:1.1rem}
+@keyframes wJump{0%,100%{transform:translateY(0)}40%{transform:translateY(-55px) scale(1.1)}80%{transform:translateY(-12px)}}
+@keyframes wShake{0%,100%{transform:rotate(0)}15%{transform:translateX(-14px) rotate(-8deg)}30%{transform:translateX(14px) rotate(8deg)}45%{transform:translateX(-8px) rotate(-4deg)}60%{transform:translateX(8px) rotate(4deg)}80%{transform:translateX(-3px)}}
+@keyframes wGrow{0%{transform:scale(1);filter:none}40%{transform:scale(2);filter:brightness(2) drop-shadow(0 0 26px gold)}70%{transform:scale(1.35);filter:brightness(1.4)}100%{transform:scale(1);filter:none}}
+@keyframes wSpin{from{transform:rotate(0) scale(1)}50%{transform:rotate(180deg) scale(.7)}to{transform:rotate(360deg) scale(1)}}
+@keyframes wWave{0%,100%{transform:rotate(0)}30%{transform:rotate(-14deg)}70%{transform:rotate(14deg)}}
+@keyframes wClone{0%{transform:scale(1);filter:none}30%{transform:scaleX(1.3);filter:hue-rotate(120deg) brightness(1.5)}60%{transform:scaleX(.9) scaleY(1.1)}100%{transform:scale(1);filter:none}}
+@keyframes wPowerUp{0%{transform:scale(1);filter:none}35%{transform:scale(1.5) translateY(-6px);filter:brightness(3) saturate(2)}65%{transform:scale(1.8);filter:brightness(2) saturate(3) hue-rotate(30deg)}100%{transform:scale(1);filter:none}}
+#wizard.j{animation:wJump .6s ease forwards}#wizard.s{animation:wShake .5s ease forwards}#wizard.g{animation:wGrow .7s ease forwards}#wizard.r{animation:wSpin .5s ease forwards}#wizard.w{animation:wWave .4s ease forwards}#wizard.c{animation:wClone .5s ease forwards}#wizard.p{animation:wPowerUp .8s ease forwards}
+
+/* 우측 키보드 영역 */
+#kb-outer{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;min-width:0}
+#kb-body{background:linear-gradient(180deg,#181840,#0e0e28);border-radius:18px;padding:18px;border:2px solid rgba(100,100,255,.25);box-shadow:0 0 40px rgba(50,50,200,.3),0 20px 50px rgba(0,0,0,.7);transform-origin:center center;width:960px;flex-shrink:0}
+.kb-row{display:flex;gap:6px;margin-bottom:6px;align-items:center}.kb-row:last-child{margin-bottom:0}
+
+/* 일반 키 */
+.k{height:62px;min-width:52px;background:linear-gradient(180deg,#1e2255,#12143a);border:2px solid #334488;border-bottom:4px solid #1a2060;border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#7788bb;font-weight:700;font-size:.82rem;user-select:none;flex-shrink:0}
+.k .sp{color:#7788bb;font-size:.78rem;font-weight:700;white-space:nowrap}
+
+/* 노란 슬롯 — 한글 이름 크게! */
+.slot{height:62px;border-radius:7px;border:2.5px dashed #FFD700;background:rgba(255,215,0,.07);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#FFD700;font-size:.82rem;font-weight:900;line-height:1.25;flex-shrink:0;cursor:default;animation:slotGlow 2.5s ease-in-out infinite;transition:background .15s,border-color .15s}
+@keyframes slotGlow{0%,100%{box-shadow:0 0 0 0 rgba(255,215,0,0)}50%{box-shadow:0 0 16px 4px rgba(255,215,0,.25)}}
+.slot .ko{font-size:.72rem;color:#aaddff;font-weight:900;display:block;margin-top:1px}
+.slot.wrong{border-color:#ff4444;background:rgba(255,68,68,.15)}
+.k-placed{background:linear-gradient(180deg,#FFD700,#FFB347)!important;border-color:#FFD700!important;border-bottom-color:#CC7000!important;color:#111!important;box-shadow:0 0 12px rgba(255,215,0,.6)!important}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.shake{animation:shake .4s}
+
+/* 개별 키 반짝임 */
+@keyframes keyFlash{
+  0%{filter:brightness(1) saturate(1)}
+  35%{filter:brightness(3.5) saturate(2);box-shadow:0 0 24px 10px rgba(255,215,0,.95),0 0 44px rgba(255,150,0,.7)!important}
+  100%{filter:brightness(1) saturate(1)}
+}
+.flash-key{animation:keyFlash .3s ease forwards!important;z-index:5;position:relative}
+
+/* 엔딩 오버레이 */
+#ending{position:fixed;inset:0;z-index:200;display:none;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 40%,rgba(10,0,50,.97),rgba(0,0,0,.99));text-align:center;gap:20px;padding:20px}
+#ending.show{display:flex}
+.end-trophy{font-size:clamp(5rem,14vw,9rem);animation:trophyIn .9s cubic-bezier(.36,.07,.19,.97) forwards}
+@keyframes trophyIn{0%{transform:scale(0) rotate(-20deg);opacity:0}60%{transform:scale(1.35) rotate(6deg);opacity:1}80%{transform:scale(.93) rotate(-3deg)}100%{transform:scale(1) rotate(0)}}
+.end-title{font-size:clamp(2rem,6vw,3.5rem);font-weight:900;color:#FFD700;text-shadow:0 0 30px #FFD700,0 0 70px orange,0 0 100px yellow;animation:fadeUp .6s .5s ease both}
+.end-sub{font-size:clamp(1rem,2.5vw,1.4rem);color:#00BFFF;font-weight:700;animation:fadeUp .6s .75s ease both}
+.end-stars{font-size:clamp(2rem,5vw,3rem);letter-spacing:10px;animation:fadeUp .6s 1s ease both}
+.end-perfect{font-size:clamp(.9rem,2vw,1.1rem);color:#00FF9F;font-weight:700;background:rgba(0,255,159,.1);border:2px solid rgba(0,255,159,.4);border-radius:12px;padding:8px 24px;animation:fadeUp .6s 1.2s ease both}
+.end-btn{margin-top:6px;padding:14px 44px;background:linear-gradient(135deg,#FFD700,#FF8C00);border:none;border-radius:50px;font-size:1.2rem;font-weight:900;color:#111;cursor:pointer;box-shadow:0 0 20px rgba(255,215,0,.5);transition:transform .12s,box-shadow .12s;animation:fadeUp .6s 1.5s ease both;font-family:inherit}
+.end-btn:hover{transform:scale(1.08);box-shadow:0 0 35px rgba(255,215,0,.9)}
+.end-btn:active{transform:scale(.96)}
+@keyframes fadeUp{from{transform:translateY(28px);opacity:0}to{transform:translateY(0);opacity:1}}
+</style>
+</head>
+<body>
+<canvas id="stars-canvas"></canvas><canvas id="fx-canvas"></canvas>
+
+<div id="ending">
+  <div class="end-trophy">🏆</div>
+  <div class="end-title">키보드 마스터!</div>
+  <div class="end-sub">모든 키를 완벽하게 정복했어요! 🎊</div>
+  <div class="end-stars">⭐ ⭐ ⭐</div>
+  <div class="end-perfect">100점 만점! 진짜 키보드 마스터!</div>
+  <button class="end-btn" onclick="location.reload()">🔄 다시 도전!</button>
+</div>
+
+<div id="app">
+  <!-- 좌측 사이드 패널 -->
+  <div id="side">
+    <div id="title">키보드 마스터 실전!</div>
+    <div id="prog-row">
+      <span id="prog-label">진행도</span>
+      <div class="prog-track"><div id="progressFill" class="prog-fill" style="width:0%"></div></div>
+      <span id="prog-count">0 / 10</span>
+    </div>
+    <div id="bubble">
+      <div id="bubble-main">화면 키보드를 보고
+실제 키를 눌러 보세요!</div>
+      <div id="bubble-sub">노란 칸에 해당하는 키를 눌러 채워봐요!</div>
+    </div>
+    <div id="wizard">
+      <div class="hat-wrap"><span class="hat-star">🌟</span><div class="hat-cone"></div><div class="hat-brim"></div></div>
+      <span class="wiz-face">🧙</span>
+      <div class="wiz-body"><div class="wiz-wand"></div></div>
+    </div>
+  </div>
+
+  <!-- 우측 키보드 영역 -->
+  <div id="kb-outer">
+    <div id="kb-body">
+      <!-- F키 행 -->
+      <div class="kb-row" style="height:52px;margin-bottom:10px">
+        <div id="slot-ESC" class="slot" style="width:60px;height:52px" data-key="ESC">ESC<span class="ko">이에스씨</span></div>
+        <div style="width:18px;flex-shrink:0"></div>
+        <div style="display:flex;gap:5px;flex-shrink:0">
+          <div class="k" style="width:48px;height:52px" data-kcode="F1"><span class="sp">F1</span></div>
+          <div class="k" style="width:48px;height:52px" data-kcode="F2"><span class="sp">F2</span></div>
+          <div class="k" style="width:48px;height:52px" data-kcode="F3"><span class="sp">F3</span></div>
+          <div class="k" style="width:48px;height:52px" data-kcode="F4"><span class="sp">F4</span></div>
+        </div>
+        <div style="width:10px;flex-shrink:0"></div>
+        <div style="display:flex;gap:5px;flex-shrink:0">
+          <div class="k" style="width:48px;height:52px" data-kcode="F5"><span class="sp">F5</span></div>
+          <div class="k" style="width:48px;height:52px" data-kcode="F6"><span class="sp">F6</span></div>
+          <div class="k" style="width:48px;height:52px" data-kcode="F7"><span class="sp">F7</span></div>
+          <div class="k" style="width:48px;height:52px" data-kcode="F8"><span class="sp">F8</span></div>
+        </div>
+        <div style="width:10px;flex-shrink:0"></div>
+        <div style="display:flex;gap:5px;flex-shrink:0">
+          <div class="k" style="width:48px;height:52px" data-kcode="F9"><span class="sp">F9</span></div>
+          <div class="k" style="width:48px;height:52px" data-kcode="F10"><span class="sp">F10</span></div>
+          <div class="k" style="width:48px;height:52px" data-kcode="F11"><span class="sp">F11</span></div>
+          <div class="k" style="width:48px;height:52px" data-kcode="F12"><span class="sp">F12</span></div>
+        </div>
+        <div style="flex:1;min-width:8px"></div>
+        <div id="slot-Delete" class="slot" style="width:60px;height:52px" data-key="Delete">Delete<span class="ko">딜리트</span></div>
+      </div>
+      <!-- 숫자 행 -->
+      <div class="kb-row">
+        <div class="k" style="width:52px" data-kcode="Backquote"><span class="sp">~</span></div>
+        <div class="k" style="width:52px" data-kcode="Digit1"><span class="sp">1</span></div>
+        <div class="k" style="width:52px" data-kcode="Digit2"><span class="sp">2</span></div>
+        <div class="k" style="width:52px" data-kcode="Digit3"><span class="sp">3</span></div>
+        <div class="k" style="width:52px" data-kcode="Digit4"><span class="sp">4</span></div>
+        <div class="k" style="width:52px" data-kcode="Digit5"><span class="sp">5</span></div>
+        <div class="k" style="width:52px" data-kcode="Digit6"><span class="sp">6</span></div>
+        <div class="k" style="width:52px" data-kcode="Digit7"><span class="sp">7</span></div>
+        <div class="k" style="width:52px" data-kcode="Digit8"><span class="sp">8</span></div>
+        <div class="k" style="width:52px" data-kcode="Digit9"><span class="sp">9</span></div>
+        <div class="k" style="width:52px" data-kcode="Digit0"><span class="sp">0</span></div>
+        <div class="k" style="width:52px" data-kcode="Minus"><span class="sp">-</span></div>
+        <div class="k" style="width:52px" data-kcode="Equal"><span class="sp">=</span></div>
+        <div id="slot-Backspace" class="slot" style="flex:1" data-key="Backspace">Backspace<span class="ko">백스페이스</span></div>
+      </div>
+      <!-- Q 행 -->
+      <div class="kb-row">
+        <div id="slot-Tab" class="slot" style="width:82px" data-key="Tab">Tab<span class="ko">탭</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyQ"><span class="sp">Q</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyW"><span class="sp">W</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyE"><span class="sp">E</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyR"><span class="sp">R</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyT"><span class="sp">T</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyY"><span class="sp">Y</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyU"><span class="sp">U</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyI"><span class="sp">I</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyO"><span class="sp">O</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyP"><span class="sp">P</span></div>
+        <div class="k" style="width:52px" data-kcode="BracketLeft"><span class="sp">[</span></div>
+        <div class="k" style="width:52px" data-kcode="BracketRight"><span class="sp">]</span></div>
+        <div class="k" style="width:52px" data-kcode="Backslash"><span class="sp">\</span></div>
+      </div>
+      <!-- A 행 -->
+      <div class="kb-row">
+        <div id="slot-CapsLock" class="slot" style="width:96px" data-key="CapsLock">Caps Lock<span class="ko">캡스락</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyA"><span class="sp">A</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyS"><span class="sp">S</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyD"><span class="sp">D</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyF"><span class="sp">F</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyG"><span class="sp">G</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyH"><span class="sp">H</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyJ"><span class="sp">J</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyK"><span class="sp">K</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyL"><span class="sp">L</span></div>
+        <div class="k" style="width:52px" data-kcode="Semicolon"><span class="sp">;</span></div>
+        <div class="k" style="width:52px" data-kcode="Quote"><span class="sp">'</span></div>
+        <div id="slot-Enter" class="slot" style="flex:1" data-key="Enter">Enter<span class="ko">엔터</span></div>
+      </div>
+      <!-- Z 행 -->
+      <div class="kb-row">
+        <div id="slot-ShiftL" class="slot" style="width:136px" data-key="Shift">Shift<span class="ko">쉬프트</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyZ"><span class="sp">Z</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyX"><span class="sp">X</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyC"><span class="sp">C</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyV"><span class="sp">V</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyB"><span class="sp">B</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyN"><span class="sp">N</span></div>
+        <div class="k" style="width:52px" data-kcode="KeyM"><span class="sp">M</span></div>
+        <div class="k" style="width:52px" data-kcode="Comma"><span class="sp">,</span></div>
+        <div class="k" style="width:52px" data-kcode="Period"><span class="sp">.</span></div>
+        <div class="k" style="width:52px" data-kcode="Slash"><span class="sp">/</span></div>
+        <div id="slot-ShiftR" class="slot" style="flex:1" data-key="Shift">Shift<span class="ko">쉬프트</span></div>
+      </div>
+      <!-- 하단 행 -->
+      <div class="kb-row">
+        <div id="slot-Ctrl" class="slot" style="width:68px" data-key="Ctrl">Ctrl<span class="ko">컨트롤</span></div>
+        <div class="k" style="width:52px"><span class="sp" style="font-size:.62rem">Fn</span></div>
+        <div id="slot-Win" class="slot" style="width:52px" data-key="Win">⊞<span class="ko">윈도우키</span></div>
+        <div id="slot-Alt" class="slot" style="width:52px" data-key="Alt">Alt<span class="ko">알트</span></div>
+        <div id="slot-Space" class="slot" style="flex:1" data-key="Space">Space<span class="ko">스페이스</span></div>
+        <div id="slot-HanYeong" class="slot" style="width:68px" data-key="HanYeong">한/영</div>
+        <div class="k" style="width:68px" data-kcode="ContextMenu"><span class="sp" style="font-size:.62rem">Menu</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SC=document.getElementById('stars-canvas');const sc=SC.getContext('2d');
+const FC=document.getElementById('fx-canvas');const fc=FC.getContext('2d');
+const STARS=Array.from({length:220},()=>({rx:Math.random(),ry:Math.random(),r:Math.random()*1.4+.3,ph:Math.random()*Math.PI*2,sp:Math.random()*.03+.005}));
+const P=[];let t=0;
+function resize(){SC.width=FC.width=innerWidth;SC.height=FC.height=innerHeight}resize();addEventListener('resize',resize);
+function drawP(p){p.x+=p.vx;p.y+=p.vy;p.vy+=.12;fc.beginPath();fc.arc(p.x,p.y,p.s*p.life+.5,0,Math.PI*2);fc.fillStyle=p.c;fc.fill();}
+function loop(){t+=.016;sc.clearRect(0,0,SC.width,SC.height);for(const s of STARS){const a=.25+.75*(0.5+0.5*Math.sin(s.ph+t*s.sp*60));sc.beginPath();sc.arc(s.rx*SC.width,s.ry*SC.height,s.r,0,Math.PI*2);sc.fillStyle=`rgba(255,255,255,${a})`;sc.fill();}fc.clearRect(0,0,FC.width,FC.height);for(let i=P.length-1;i>=0;i--){const p=P[i];p.life-=p.decay;if(p.life<=0){P.splice(i,1);continue;}fc.globalAlpha=p.life;drawP(p);}fc.globalAlpha=1;requestAnimationFrame(loop)}loop();
+function burst(cx,cy,h=48,cnt=32){for(let i=0;i<cnt;i++){const a=Math.random()*Math.PI*2,v=Math.random()*8+3;P.push({x:cx,y:cy,vx:Math.cos(a)*v,vy:Math.sin(a)*v-1.2,life:1,decay:.02+Math.random()*.012,s:4+Math.random()*3,c:`hsl(${h+Math.random()*60},100%,68%)`});}}
+
+/* 키보드 자동 스케일 */
+function fitKeyboard(){
+  const outer=document.getElementById('kb-outer');
+  const kb=document.getElementById('kb-body');
+  kb.style.transform='scale(1)';
+  const ow=outer.clientWidth-8, oh=outer.clientHeight-8;
+  const kw=kb.scrollWidth, kh=kb.scrollHeight;
+  const scale=Math.min(ow/kw, oh/kh);
+  kb.style.transform=`scale(${scale})`;
+}
+window.addEventListener('resize',fitKeyboard);
+window.addEventListener('load',fitKeyboard);
+setTimeout(fitKeyboard,100);
+
+const KEYS=[
+{id:'ESC',type:'ESC',label:'ESC',sub:'이에스씨',anim:'s',hue:300,bubMain:'ESC 성공!\n취소/닫기 마법!',bubSub:'ESC는 빠져나가기 키예요.'},
+{id:'Delete',type:'Delete',label:'Delete',sub:'딜리트',anim:'w',hue:0,bubMain:'Delete 성공!\n오른쪽 글자 삭제!',bubSub:'Delete는 커서 오른쪽을 지워요.'},
+{id:'Backspace',type:'Backspace',label:'Backspace',sub:'백스페이스',anim:'w',hue:200,bubMain:'Backspace 성공!\n왼쪽 글자 삭제!',bubSub:'Backspace는 커서 왼쪽을 지워요.'},
+{id:'Enter',type:'Enter',label:'Enter',sub:'엔터',anim:'j',hue:48,bubMain:'Enter 성공!\n실행 또는 줄바꿈!',bubSub:'Enter는 실행할 때 자주 써요.'},
+{id:'CapsLock',type:'CapsLock',label:'Caps Lock',sub:'캡스락',anim:'r',hue:35,bubMain:'Caps Lock 성공!\n대문자 고정 모드!',bubSub:'Caps Lock은 대소문자 상태를 바꿔요.'},
+{id:'ShiftL',type:'Shift',label:'Shift',sub:'쉬프트',anim:'c',hue:170,bubMain:'Shift 성공!\n대문자/특수문자 변신!',bubSub:'Shift를 누르면 글자가 바뀌어요.'},
+{id:'ShiftR',type:'Shift',label:'Shift',sub:'쉬프트',anim:'c',hue:170,bubMain:'Shift 완료!',bubSub:'쌍자음이나 특수문자를 쓸 수 있어요'},
+{id:'Ctrl',type:'Ctrl',label:'Ctrl',sub:'컨트롤',anim:'g',hue:260,bubMain:'Ctrl 성공!\n단축키의 시작!',bubSub:'Ctrl+C, Ctrl+V에 쓰여요.'},
+{id:'HanYeong',type:'HanYeong',label:'한/영',sub:'한영키',anim:'r',hue:120,bubMain:'한/영 성공!\n입력 언어 바꾸기!',bubSub:'한글과 영어를 바꿔요.'},
+{id:'Space',type:'Space',label:'Space',sub:'스페이스',anim:'j',hue:45,bubMain:'Space 성공!\n띄어쓰기 완료!',bubSub:'Space는 글자 사이를 띄워요.'},
+{id:'Win',type:'Win',label:'Win',sub:'윈도우',anim:'p',hue:200,bubMain:'Win 성공!\n윈도우 키!',bubSub:'시작 메뉴를 열 수 있어요.'},
+{id:'Alt',type:'Alt',label:'Alt',sub:'알트',anim:'g',hue:180,bubMain:'Alt 성공!\n알트 키!',bubSub:'Alt+F4로 창을 닫을 수 있어요.'}
+];
+const TOTAL=KEYS.length;let placed=0;let bTimer=null,aTimer=null;
+
+function createPlacedKey(kd){const el=document.createElement('div');el.className='k k-placed';el.style.width='100%';el.style.height='100%';el.style.minWidth='0';el.style.cursor='default';el.innerHTML=`<span style="font-weight:900;font-size:.85rem">${kd.label}</span><span style="font-size:.68rem;opacity:.8">${kd.sub}</span>`;return el;}
+function fireBubble(kd){
+  document.getElementById('bubble-main').textContent=kd.bubMain;
+  document.getElementById('bubble-sub').textContent=kd.bubSub;
+  const wiz=document.getElementById('wizard');
+  wiz.className='';void wiz.offsetWidth;wiz.className=kd.anim;
+  clearTimeout(aTimer);aTimer=setTimeout(()=>wiz.className='',900);
+  const r=wiz.getBoundingClientRect();
+  burst(r.left+r.width/2,r.top+r.height/2,kd.hue,26);
+}
+function updateProgress(){document.getElementById('prog-count').textContent=`${placed} / ${TOTAL}`;document.getElementById('progressFill').style.width=`${(placed/TOTAL)*100}%`;}
+
+function showWin(){
+  document.getElementById('bubble-main').textContent='🎉 미션 클리어!\n키보드 정복 완료!';
+  document.getElementById('bubble-sub').textContent='모든 목표 키를 찾았어요!';
+  document.getElementById('wizard').className='p';
+  for(let i=0;i<18;i++){setTimeout(()=>{burst(Math.random()*innerWidth,Math.random()*innerHeight*.65,Math.random()*360,70);},i*220);}
+  setTimeout(()=>{
+    document.getElementById('ending').classList.add('show');
+    for(let i=0;i<12;i++){setTimeout(()=>{burst(Math.random()*innerWidth,Math.random()*innerHeight*.55,Math.random()*360,65);},i*350);}
+  },1800);
+}
+
+const SLOT_CODE_MAP={
+  'Escape':'slot-ESC','Delete':'slot-Delete','Backspace':'slot-Backspace',
+  'Tab':'slot-Tab','CapsLock':'slot-CapsLock','Enter':'slot-Enter','NumpadEnter':'slot-Enter',
+  'ControlLeft':'slot-Ctrl','ControlRight':'slot-Ctrl',
+  'MetaLeft':'slot-Win','MetaRight':'slot-Win',
+  'AltLeft':'slot-Alt','AltRight':'slot-Alt',
+  'Space':'slot-Space','Lang1':'slot-HanYeong','HangulMode':'slot-HanYeong'
+};
+function flashEl(el){if(!el)return;el.classList.remove('flash-key');void el.offsetWidth;el.classList.add('flash-key');setTimeout(()=>el.classList.remove('flash-key'),320);}
+function flashKey(e){
+  if(e.key==='Shift'){
+    flashEl(document.getElementById('slot-ShiftL'));
+    flashEl(document.getElementById('slot-ShiftR'));
+    return;
+  }
+  if(SLOT_CODE_MAP[e.code]){flashEl(document.getElementById(SLOT_CODE_MAP[e.code]));return;}
+  if(e.keyCode===21||e.which===21){flashEl(document.getElementById('slot-HanYeong'));return;}
+  flashEl(document.querySelector(`.k[data-kcode="${e.code}"]`));
+}
+
+function placeByKeyboardType(type){const target=KEYS.find(k=>k.type===type&&!document.getElementById('slot-'+k.id).dataset.filled);if(!target){const any=KEYS.find(k=>k.type===type);if(any)fireBubble(any);return;}placeById(target.id);}
+function placeById(id){
+  const target=KEYS.find(k=>k.id===id);if(!target)return;
+  const slot=document.getElementById('slot-'+target.id);
+  if(slot.dataset.filled){fireBubble(target);return;}
+  slot.innerHTML='';slot.appendChild(createPlacedKey(target));
+  slot.dataset.filled='1';slot.style.border='none';slot.style.background='transparent';slot.style.animation='none';
+  placed++;updateProgress();fireBubble(target);
+  const rr=slot.getBoundingClientRect();burst(rr.left+rr.width/2,rr.top+rr.height/2,target.hue,34);
+  if(placed===TOTAL)setTimeout(showWin,850);
+}
+
+const CODE_TO_ACTION={Escape:'ESC',Delete:'Delete',Backspace:'Backspace',Enter:'Enter',NumpadEnter:'Enter',CapsLock:'CapsLock',ControlLeft:'Ctrl',ControlRight:'Ctrl',Space:'Space',Lang1:'HanYeong',HangulMode:'HanYeong',Tab:'Tab'};
+function resolveAction(e){
+  // 한자 키를 Control보다 먼저 체크 (한자가 ControlRight로 잡히는 경우 방지)
+  if(e.code==='Lang2'||e.keyCode===25||e.which===25)return 'Hanja';
+  const key=String(e.key||'').toLowerCase();
+  if(key.includes('hanja')||key==='한자')return 'Hanja';
+  if(e.key==='Shift')return 'Shift';
+  if(e.key==='Control')return 'Ctrl';
+  if(e.key==='Meta')return 'Win';
+  if(e.key==='Alt')return 'Alt';
+  let action=CODE_TO_ACTION[e.code];if(action)return action;
+  if(key.includes('hangul')||key==='한/영'||key==='한영')return 'HanYeong';
+  if(e.keyCode===21||e.which===21)return 'HanYeong';
+  return null;
+}
+
+addEventListener('keydown',e=>{
+  flashKey(e);
+  const action=resolveAction(e);
+  if(!action)return;
+  if(action==='Hanja'){fireBubble({bubMain:'한자키 감지!',bubSub:'한자키는 미션 키가 아니에요.',anim:'s',hue:20});return;}
+  if(['Space','Tab','Alt'].includes(action))e.preventDefault();
+  if(action==='Tab'){
+    const slot=document.getElementById('slot-Tab');
+    if(!slot.dataset.filled){slot.innerHTML='';slot.appendChild(createPlacedKey({label:'Tab',sub:'탭'}));slot.dataset.filled='1';slot.style.border='none';slot.style.background='transparent';slot.style.animation='none';}
+    else{slot.classList.remove('shake');void slot.offsetWidth;slot.classList.add('shake');setTimeout(()=>slot.classList.remove('shake'),240);}
+    fireBubble({bubMain:'Tab 발견!\n탭 키예요!',bubSub:'Tab은 건너뛰기',anim:'j',hue:210});
+    const rr=slot.getBoundingClientRect();burst(rr.left+rr.width/2,rr.top+rr.height/2,210,24);
+    return;
+  }
+  if(action==='Shift'){placeById('ShiftL');placeById('ShiftR');return;}
+  placeByKeyboardType(action);
+});
+
+updateProgress();
+</script>
+</body>
+</html>
